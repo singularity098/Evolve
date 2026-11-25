@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark, without a title bar, the window the colour of Evolve's
+         background so nothing flashes while it starts (as Chippy's). -->
+    <style name="Theme.Evolve" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/evolve_bg</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+    <color name="evolve_bg">#15151a</color>
+</resources>

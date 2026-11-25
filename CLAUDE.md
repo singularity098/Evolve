@@ -10,3 +10,10 @@ Notes for Claude working on Evolve.
   session. Even then, don't use that branch: commit on `main` and push `main`
   (`git push origin HEAD:main`). Don't push the session branch.
 - This is a solo project: branches and PRs add very little here and create unwanted overhead.
+
+## The project
+
+See `README.md`. A Rust engine (`crates/evolve`, exposed through UniFFI) under a Jetpack
+Compose app (`android/`), styled after Chippy (singularity098/Chippy). `cargo test` tests the
+engine; `android/build-apk.sh` builds the APK. The database is JSON and doubles as the export
+format: only ever add fields (with serde defaults), never rename them.

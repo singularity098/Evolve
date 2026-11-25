@@ -57,7 +57,7 @@ impl From<serde_json::Error> for EvolveError {
 type Result<T> = std::result::Result<T, EvolveError>;
 
 #[derive(Debug, Clone, PartialEq, uniffi::Record)]
-pub struct Library {
+pub struct AppLibrary {
     pub settings: Settings,
     pub exercises: Vec<Exercise>,
     pub routines: Vec<Routine>,
@@ -251,9 +251,9 @@ impl Engine {
 
     // ------------------------------------------------------------ library
 
-    pub fn library(&self) -> Library {
+    pub fn library(&self) -> AppLibrary {
         let g = self.lock();
-        Library {
+        AppLibrary {
             settings: g.db.settings.clone(),
             exercises: g.db.exercises.clone(),
             routines: g.db.routines.clone(),

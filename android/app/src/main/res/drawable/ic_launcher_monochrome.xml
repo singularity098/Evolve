@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The themed (monochrome) launcher icon: the lotus and heartbeat in white,
+     as the system tints it. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="100" android:viewportHeight="100">
+    <group android:scaleX="0.68" android:scaleY="0.68" android:pivotX="50" android:pivotY="51">
+        <group android:translateY="-4">
+        <group android:rotation="-70" android:pivotX="50" android:pivotY="66"><path android:pathData="M50 30 C60 42 60 56 50 66 C40 56 40 42 50 30 Z" android:fillColor="#ffffff" android:fillAlpha="0.55" /></group>
+        <group android:rotation="70" android:pivotX="50" android:pivotY="66"><path android:pathData="M50 30 C60 42 60 56 50 66 C40 56 40 42 50 30 Z" android:fillColor="#ffffff" android:fillAlpha="0.55" /></group>
+        <group android:rotation="-36" android:pivotX="50" android:pivotY="66"><path android:pathData="M50 26 C61 40 61 56 50 66 C39 56 39 40 50 26 Z" android:fillColor="#ffffff" android:fillAlpha="0.85" /></group>
+        <group android:rotation="36" android:pivotX="50" android:pivotY="66"><path android:pathData="M50 26 C61 40 61 56 50 66 C39 56 39 40 50 26 Z" android:fillColor="#ffffff" android:fillAlpha="0.85" /></group>
+        <path android:pathData="M50 22 C62 38 62 56 50 66 C38 56 38 38 50 22 Z" android:fillColor="#ffffff" />
+        </group>
+        <path android:pathData="M14 76 H38 L43 69 L49 84 L54 72 L57 76 H86" android:fillColor="#00000000" android:strokeColor="#ffffff" android:strokeWidth="3.2" android:strokeLineCap="round" android:strokeLineJoin="round" />
+    </group>
+</vector>
