@@ -1,0 +1,16 @@
+[package]
+name = "uniffi-bindgen"
+description = "Generates the Kotlin bindings of the evolve crate (run by android/build-apk.sh)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[[bin]]
+name = "uniffi-bindgen"
+path = "src/main.rs"
+
+[dependencies]
+# The same version as the evolve crate's.
+uniffi = { version = "0.29.5", features = ["cli"] }

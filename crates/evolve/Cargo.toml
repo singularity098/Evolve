@@ -1,0 +1,22 @@
+[package]
+name = "evolve"
+description = "Evolve's engine: workouts, programs, sessions, history, graphs and import/export, exposed to the Android app through UniFFI"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lib]
+name = "evolve"
+# cdylib for the app; lib so the tests (and the bindings generator) can use it on the desktop.
+crate-type = ["cdylib", "lib"]
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "2.0"
+uniffi = "0.29.5"
+
+[dev-dependencies]
+tempfile = "3"
