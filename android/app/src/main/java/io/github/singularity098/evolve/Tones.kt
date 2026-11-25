@@ -20,11 +20,6 @@ class Tones(private val context: Context) {
     private val rate = 44_100
     private val player = Executors.newSingleThreadExecutor { r -> Thread(r, "tones") }
 
-    // Render the singing bowl off the main thread, ahead of its first use.
-    init {
-        player.execute { bowl }
-    }
-
     /** (frequency, relative amplitude) partials, decaying over [seconds]. */
     private fun render(seconds: Double, decay: Double, attack: Double, volume: Double, partials: List<Pair<Double, Double>>): ShortArray {
         val n = (seconds * rate).toInt()
@@ -108,6 +103,19 @@ class Tones(private val context: Context) {
         for (i in 0 until fade) wet[n - 1 - i] *= i.toDouble() / fade
         val peak = wet.maxOf { abs(it) }
         ShortArray(n) { (wet[it] / peak * 0.7 * Short.MAX_VALUE).toInt().toShort() }
+    }
+
+    // Render the singing bowl off the main thread, ahead of its first use. This must come after
+    // `bowl` is declared: an init block runs in source order, and one placed above it handed the
+    // tones thread a delegate that wasn't there yet (a NullPointerException there killed the app
+    // as a workout started).
+    init {
+        player.execute {
+            try {
+                bowl
+            } catch (_: Throwable) {
+            }
+        }
     }
 
     /** A small Schroeder reverb: four feedback combs in parallel, then two allpasses. */

@@ -25,6 +25,7 @@ import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import io.github.singularity098.evolve.core.BreathPhase
 import io.github.singularity098.evolve.core.Intensity
+import io.github.singularity098.evolve.core.Session
 import io.github.singularity098.evolve.core.TimerMode
 import io.github.singularity098.evolve.core.TrackPoint
 import io.github.singularity098.evolve.core.formatDistance
@@ -214,64 +215,73 @@ class WorkoutService : Service() {
                 stopSelf()
                 return
             }
-            val now = System.currentTimeMillis()
-            val paused = s.pausedAtMs != null
-            var text = formatDuration(s.startedAtMs.let { (now - it - s.pausedMs - (s.pausedAtMs?.let { p -> now - p } ?: 0)) / 1000.0 })
-
-            s.lifting?.let { l ->
-                val until = l.restUntilMs
-                if (until != null && now >= until && restNotified != until) {
-                    restNotified = until
-                    tones.restOver()
-                }
-                if (until != null && now < until) text += " · rest ${formatDuration((until - now) / 1000.0)}"
-                val done = l.exercises.sumOf { e -> e.sets.count { it.done } }
-                val all = l.exercises.sumOf { it.sets.size }
-                text += " · $done/$all sets"
-            }
-            s.timer?.let { t ->
-                val st = store.engine.timerStatus(now)
-                if (st != null && !paused) {
-                    val i = st.index.toInt()
-                    if (lastInterval != -1 && i != lastInterval && !st.finished) {
-                        tones.go(st.intensity == Intensity.HARD || st.intensity == Intensity.MAX)
-                    }
-                    lastInterval = i
-                    if (t.mode != TimerMode.STOPWATCH && !st.finished) {
-                        val secLeft = (st.stepRemainingMs + 999) / 1000
-                        if (secLeft in 1..3 && secLeft != lastTickSecond) tones.tick()
-                        lastTickSecond = secLeft
-                        text += " · ${st.label} ${formatDuration(st.stepRemainingMs / 1000.0)}"
-                    }
-                    if (st.finished && !timerDone && t.mode != TimerMode.STOPWATCH) {
-                        timerDone = true
-                        tones.done()
-                    }
-                }
-            }
-            s.meditation?.let { m ->
-                val el = s.startedAtMs.let { now - it - s.pausedMs - (s.pausedAtMs?.let { p -> now - p } ?: 0) }
-                if (!paused && !meditationDone && el >= m.targetSecs.toLong() * 1000) {
-                    meditationDone = true
-                    tones.bell()
-                }
-            }
-            s.breath?.let { b ->
-                val st = store.engine.breathStatus(now)
-                if (st != null && b.phase == BreathPhase.RECOVERY && st.recoveryRemainingMs <= 0) {
-                    store.live { breathAdvance(now) }
-                    tones.breathe()
-                }
-                if (st != null) text += " · round ${st.round}"
-            }
-            store.gps.value?.let { g -> text += " · " + formatDistance(g.distanceM, store.settings.distanceUnit) }
-            if (paused) text = "Paused · $text"
-
-            if (now - lastNotified >= 1000) {
-                lastNotified = now
-                getSystemService(NotificationManager::class.java).notify(ID, notification(text))
+            // A cue or the notification failing must not take the app down with it.
+            try {
+                step(s)
+            } catch (t: Throwable) {
+                Log.e("evolve", "workout tick failed", t)
             }
             handler.postDelayed(this, 200)
+        }
+    }
+
+    private fun step(s: Session) {
+        val now = System.currentTimeMillis()
+        val paused = s.pausedAtMs != null
+        var text = formatDuration(s.startedAtMs.let { (now - it - s.pausedMs - (s.pausedAtMs?.let { p -> now - p } ?: 0)) / 1000.0 })
+
+        s.lifting?.let { l ->
+            val until = l.restUntilMs
+            if (until != null && now >= until && restNotified != until) {
+                restNotified = until
+                tones.restOver()
+            }
+            if (until != null && now < until) text += " · rest ${formatDuration((until - now) / 1000.0)}"
+            val done = l.exercises.sumOf { e -> e.sets.count { it.done } }
+            val all = l.exercises.sumOf { it.sets.size }
+            text += " · $done/$all sets"
+        }
+        s.timer?.let { t ->
+            val st = store.engine.timerStatus(now)
+            if (st != null && !paused) {
+                val i = st.index.toInt()
+                if (lastInterval != -1 && i != lastInterval && !st.finished) {
+                    tones.go(st.intensity == Intensity.HARD || st.intensity == Intensity.MAX)
+                }
+                lastInterval = i
+                if (t.mode != TimerMode.STOPWATCH && !st.finished) {
+                    val secLeft = (st.stepRemainingMs + 999) / 1000
+                    if (secLeft in 1..3 && secLeft != lastTickSecond) tones.tick()
+                    lastTickSecond = secLeft
+                    text += " · ${st.label} ${formatDuration(st.stepRemainingMs / 1000.0)}"
+                }
+                if (st.finished && !timerDone && t.mode != TimerMode.STOPWATCH) {
+                    timerDone = true
+                    tones.done()
+                }
+            }
+        }
+        s.meditation?.let { m ->
+            val el = s.startedAtMs.let { now - it - s.pausedMs - (s.pausedAtMs?.let { p -> now - p } ?: 0) }
+            if (!paused && !meditationDone && el >= m.targetSecs.toLong() * 1000) {
+                meditationDone = true
+                tones.bell()
+            }
+        }
+        s.breath?.let { b ->
+            val st = store.engine.breathStatus(now)
+            if (st != null && b.phase == BreathPhase.RECOVERY && st.recoveryRemainingMs <= 0) {
+                store.live { breathAdvance(now) }
+                tones.breathe()
+            }
+            if (st != null) text += " · round ${st.round}"
+        }
+        store.gps.value?.let { g -> text += " · " + formatDistance(g.distanceM, store.settings.distanceUnit) }
+        if (paused) text = "Paused · $text"
+
+        if (now - lastNotified >= 1000) {
+            lastNotified = now
+            getSystemService(NotificationManager::class.java).notify(ID, notification(text))
         }
     }
 

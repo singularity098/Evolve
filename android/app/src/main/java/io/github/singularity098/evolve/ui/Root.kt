@@ -3,6 +3,18 @@ package io.github.singularity098.evolve.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontFamily
+import io.github.singularity098.evolve.EvolveApplication
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -162,5 +174,39 @@ fun EvolveRoot(store: Store, host: Host) {
                 }
             }
         }
+        LastCrash()
     }
+}
+
+/** What went wrong the last time the app crashed, if it did: shown once, to copy. */
+@Composable
+private fun LastCrash() {
+    val app = LocalContext.current.applicationContext as EvolveApplication
+    val file = remember { app.crashFile() }
+    var report by remember { mutableStateOf(try { file.takeIf { it.exists() }?.readText() } catch (_: Exception) { null }) }
+    val text = report ?: return
+    val clipboard = LocalClipboardManager.current
+    val close = {
+        file.delete()
+        report = null
+    }
+    AlertDialog(
+        onDismissRequest = close,
+        title = { Text("Evolve closed unexpectedly") },
+        text = {
+            Column {
+                Text("The app crashed last time. Copy this and send it along so it can be fixed.")
+                SelectionContainer(Modifier.padding(top = 12.dp).heightIn(max = 320.dp).verticalScroll(rememberScrollState())) {
+                    Text(text, fontFamily = FontFamily.Monospace, fontSize = 11.sp, lineHeight = 14.sp)
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                clipboard.setText(AnnotatedString(text))
+                close()
+            }) { Text("Copy and close") }
+        },
+        dismissButton = { TextButton(onClick = close) { Text("Close") } },
+    )
 }
