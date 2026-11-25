@@ -50,7 +50,7 @@ on a GPS workout's map, which takes the drag for itself):
   you like. For example: get ready 10 s, warm-up 5 min, then 5 × (all out
   20 s, recover 2 min), then cool-down 5 min. Each interval change sounds
   (high for hard work, low for rest) with ticks for the last three seconds.
-* **Meditation.** A quiet countdown with a soft bell at the end, or enter
+* **Meditation.** A quiet countdown with a singing bowl at the end, or enter
   a session done elsewhere afterwards.
 * **Breathing.** Breath-hold rounds: breathe deeply 40 times (an optional
   pacing circle grows and shrinks with each breath), tap, breathe out fully

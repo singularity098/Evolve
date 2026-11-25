@@ -33,6 +33,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,6 +49,7 @@ import io.github.singularity098.evolve.core.formatDuration
 import io.github.singularity098.evolve.core.kindLabel
 import io.github.singularity098.evolve.core.programTotalSecs
 import io.github.singularity098.evolve.core.weightToKg
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
@@ -88,9 +90,17 @@ fun StartSheet(store: Store, kind: WorkoutKind, onManual: () -> Unit, onClose: (
     val lib = store.library.value
     val s = lib.settings
     val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
+    var starting by remember { mutableStateOf(false) }
+    // The sheet slides away first; only once it's gone does the workout start (and the app
+    // turn to the In progress tab), so the sheet's window isn't torn down mid-change.
     fun go(f: io.github.singularity098.evolve.core.Engine.() -> Session) {
-        store.start(f)
-        onClose()
+        if (starting) return
+        starting = true
+        scope.launch { sheet.hide() }.invokeOnCompletion {
+            onClose()
+            store.start(f)
+        }
     }
     ModalBottomSheet(onDismissRequest = onClose, sheetState = sheet, containerColor = MaterialTheme.colorScheme.surfaceContainer) {
         Column(
@@ -170,7 +180,7 @@ fun StartSheet(store: Store, kind: WorkoutKind, onManual: () -> Unit, onClose: (
                 }
                 WorkoutKind.MEDITATION -> {
                     var minutes by remember { mutableIntStateOf(s.meditationMinutes.toInt().coerceAtLeast(1)) }
-                    Hint("A quiet timer. A soft bell sounds at the end.", Modifier.padding(top = 8.dp))
+                    Hint("A quiet timer. A singing bowl sounds at the end.", Modifier.padding(top = 8.dp))
                     FlowRow(
                         Modifier.padding(16.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),

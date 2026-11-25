@@ -10,14 +10,20 @@ import android.os.Vibrator
 import android.os.VibratorManager
 import java.util.concurrent.Executors
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.exp
 import kotlin.math.min
 import kotlin.math.sin
 
-/** Evolve's sounds, synthesized: soft bells and short beeps, and buzzes. */
+/** Evolve's sounds, synthesized: a singing bowl, short beeps, and buzzes. */
 class Tones(private val context: Context) {
     private val rate = 44_100
     private val player = Executors.newSingleThreadExecutor { r -> Thread(r, "tones") }
+
+    // Render the singing bowl off the main thread, ahead of its first use.
+    init {
+        player.execute { bowl }
+    }
 
     /** (frequency, relative amplitude) partials, decaying over [seconds]. */
     private fun render(seconds: Double, decay: Double, attack: Double, volume: Double, partials: List<Pair<Double, Double>>): ShortArray {
@@ -66,10 +72,60 @@ class Tones(private val context: Context) {
     private val sounds get() = (context.applicationContext as EvolveApplication).store.settings.sounds
     private val buzz get() = (context.applicationContext as EvolveApplication).store.settings.vibrate
 
-    /** The end of a meditation: a soft singing-bowl bell. */
+    /** The end of a meditation: a short singing bowl in a little reverb. */
     fun bell() {
-        if (sounds) play(render(5.0, 1.6, 0.01, 0.55, listOf(432.0 to 1.0, 864.5 to 0.35, 1296.0 to 0.15, 1729.0 to 0.06)))
+        if (sounds) play(bowl)
         vibrate(longArrayOf(0, 120))
+    }
+
+    /**
+     * A struck singing bowl (G3): inharmonic partials, each a slowly beating pair, ringing for
+     * about a second, then a light reverb tail; about six seconds in all. Rendered once.
+     */
+    private val bowl: ShortArray by lazy {
+        val seconds = 6.0
+        val n = (seconds * rate).toInt()
+        val f = 196.0
+        // (ratio, amplitude, decay seconds, beat Hz)
+        val partials = listOf(
+            doubleArrayOf(1.0, 1.0, 1.1, 0.9),
+            doubleArrayOf(2.76, 0.45, 0.7, 1.7),
+            doubleArrayOf(5.40, 0.18, 0.45, 2.3),
+            doubleArrayOf(8.93, 0.07, 0.3, 3.1),
+        )
+        val dry = DoubleArray(n)
+        for (i in 0 until n) {
+            val t = i.toDouble() / rate
+            var v = 0.0
+            for (p in partials) {
+                val hz = f * p[0]
+                v += p[1] * 0.5 * (sin(2 * PI * hz * t) + sin(2 * PI * (hz + p[3]) * t)) * exp(-t / p[2])
+            }
+            dry[i] = v * min(1.0, t / 0.012)
+        }
+        val wet = reverb(dry, 0.3)
+        val fade = (0.5 * rate).toInt()
+        for (i in 0 until fade) wet[n - 1 - i] *= i.toDouble() / fade
+        val peak = wet.maxOf { abs(it) }
+        ShortArray(n) { (wet[it] / peak * 0.7 * Short.MAX_VALUE).toInt().toShort() }
+    }
+
+    /** A small Schroeder reverb: four feedback combs in parallel, then two allpasses. */
+    private fun reverb(x: DoubleArray, mix: Double): DoubleArray {
+        fun comb(x: DoubleArray, d: Int, g: Double): DoubleArray {
+            val y = x.copyOf()
+            for (i in d until y.size) y[i] += g * y[i - d]
+            return y
+        }
+        fun allpass(x: DoubleArray, d: Int, g: Double): DoubleArray {
+            val w = comb(x, d, g)
+            return DoubleArray(x.size) { -g * w[it] + (if (it >= d) w[it - d] else 0.0) }
+        }
+        val combs = listOf(1557 to 0.84, 1617 to 0.83, 1491 to 0.85, 1422 to 0.86).map { (d, g) -> comb(x, d, g) }
+        var w = DoubleArray(x.size) { i -> combs.sumOf { it[i] } / combs.size }
+        w = allpass(w, 225, 0.5)
+        w = allpass(w, 556, 0.5)
+        return DoubleArray(x.size) { (1 - mix) * x[it] + mix * w[it] }
     }
 
     /** Rest over: up a fifth. */
@@ -101,9 +157,9 @@ class Tones(private val context: Context) {
         vibrate(longArrayOf(0, 200, 100, 200, 100, 400))
     }
 
-    /** Breathe in (the recovery breath is over: breathe on). */
+    /** Breathe in (the recovery breath is over: breathe on): the same singing bowl. */
     fun breathe() {
-        if (sounds) play(render(1.6, 0.8, 0.05, 0.5, listOf(528.0 to 1.0, 1056.0 to 0.25)))
+        if (sounds) play(bowl)
         vibrate(longArrayOf(0, 150))
     }
 

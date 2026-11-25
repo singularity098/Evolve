@@ -72,7 +72,13 @@ fun EvolveRoot(store: Store, host: Host) {
         val snackbar = remember { SnackbarHostState() }
 
         LaunchedEffect(hasSession) {
-            if (hasSession) tab = Tab.Workout else if (tab == Tab.Workout) tab = Tab.Home
+            if (hasSession) {
+                // A workout just started (or was under way): straight to In progress.
+                tab = Tab.Workout
+                pager.scrollToPage(pages.indexOf(Tab.Workout))
+            } else if (tab == Tab.Workout) {
+                tab = Tab.Home
+            }
         }
         LaunchedEffect(pages, tab) {
             val i = pages.indexOf(tab)

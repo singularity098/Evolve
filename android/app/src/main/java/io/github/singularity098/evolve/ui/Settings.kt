@@ -89,7 +89,7 @@ private fun MainSettings(store: Store, host: Host, open: (SettingsPage) -> Unit)
                 store.updateSettings { it.copy(keepScreenOn = on) }
             }
         }
-        item { SwitchRow("Sounds", "Rest over, each interval, the meditation bell.", s.sounds) { on -> store.updateSettings { it.copy(sounds = on) } } }
+        item { SwitchRow("Sounds", "Rest over, each interval, the meditation and breathing bowl.", s.sounds) { on -> store.updateSettings { it.copy(sounds = on) } } }
         item { SwitchRow("Vibrate", "", s.vibrate) { on -> store.updateSettings { it.copy(vibrate = on) } } }
         item {
             StepRow("Rest between sets", formatDuration(s.defaultRestSecs.toDouble()), "For exercises added to a routine or a workout") { d ->
