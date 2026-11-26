@@ -17,11 +17,16 @@ import kotlin.math.cos
  * signal still has its map: on the first fix, and again whenever the
  * workout has gone half the way to the edge, everything within the
  * radius chosen in Settings (10 miles at first) is downloaded, at every
- * zoom the vector tiles have. Areas older than two weeks are deleted.
+ * zoom the vector tiles have, for both the light and the dark map (they
+ * share the tiles, so the second costs only its style, icons and fonts).
+ * Areas older than two weeks are deleted.
  */
 object MapCache {
     /** OpenFreeMap: free vector tiles, no key, no limits, offline use allowed. */
     const val STYLE = "https://tiles.openfreemap.org/styles/liberty"
+
+    /** The same tiles, drawn dark: for indoors and night. */
+    const val STYLE_DARK = "https://tiles.openfreemap.org/styles/dark"
     private const val MAX_AGE_MS = 14L * 24 * 3600 * 1000
 
     private var lastLat = Double.NaN
@@ -39,7 +44,10 @@ object MapCache {
             (lat + dLat).coerceAtMost(85.0), lon + dLon, (lat - dLat).coerceAtLeast(-85.0), lon - dLon,
         )
         val ratio = context.resources.displayMetrics.density
-        val def = OfflineTilePyramidRegionDefinition(STYLE, bounds, 0.0, 14.0, ratio)
+        for (style in listOf(STYLE, STYLE_DARK)) download(context, OfflineTilePyramidRegionDefinition(style, bounds, 0.0, 14.0, ratio))
+    }
+
+    private fun download(context: Context, def: OfflineTilePyramidRegionDefinition) {
         val meta = JSONObject().put("t", System.currentTimeMillis()).toString().toByteArray()
         OfflineManager.getInstance(context).createOfflineRegion(def, meta, object : OfflineManager.CreateOfflineRegionCallback {
             override fun onCreate(offlineRegion: OfflineRegion) {

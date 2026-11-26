@@ -429,6 +429,10 @@ private fun GpsScreen(store: Store, session: Session, onFinish: () -> Unit) {
     val s = store.settings
     var follow by rememberSaveable { mutableStateOf(true) }
     var recenter by remember { mutableIntStateOf(0) }
+    // The map follows the light sensor until the button picks a look for this workout.
+    val daylight by rememberDaylight()
+    var pinnedDark by rememberSaveable { mutableStateOf<Boolean?>(null) }
+    val dark = pinnedDark ?: !daylight
     val g = gps ?: session.gps
     val paused = session.pausedAtMs != null
 
@@ -440,6 +444,7 @@ private fun GpsScreen(store: Store, session: Session, onFinish: () -> Unit) {
             follow = follow,
             recenter = recenter,
             onUserMoved = { follow = false },
+            dark = dark,
         )
         Column(
             Modifier
@@ -468,6 +473,16 @@ private fun GpsScreen(store: Store, session: Session, onFinish: () -> Unit) {
                     textAlign = TextAlign.Center,
                 )
             }
+        }
+        FilledTonalIconButton(
+            onClick = { pinnedDark = !dark },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 16.dp, bottom = 116.dp)
+                .size(48.dp),
+        ) {
+            if (dark) Icon(EvolveIcons.Sun, "Light map")
+            else Icon(EvolveIcons.Moon, "Dark map")
         }
         Row(
             Modifier

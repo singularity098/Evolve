@@ -299,6 +299,9 @@ object EvolveIcons {
             line = "M 12 16 A 4 4 0 1 1 12 8 A 4 4 0 1 1 12 16 Z M 12 2.5 L 12 4.5 M 12 19.5 L 12 21.5 M 2.5 12 L 4.5 12 M 19.5 12 L 21.5 12 M 5.3 5.3 L 6.7 6.7 M 17.3 17.3 L 18.7 18.7 M 5.3 18.7 L 6.7 17.3 M 17.3 6.7 L 18.7 5.3",
         )
     }
+    val Moon: ImageVector by lazy {
+        icon("Moon", line = "M 19.5 14.5 A 8 8 0 1 1 9.5 4.5 A 6.5 6.5 0 0 0 19.5 14.5 Z")
+    }
     val Edit: ImageVector by lazy {
         icon("Edit", line = "M 4 20 L 4.8 16.2 L 15.8 5.2 A 2.1 2.1 0 0 1 18.8 8.2 L 7.8 19.2 Z M 14 7 L 17 10")
     }

@@ -180,6 +180,7 @@ private fun WorkoutDetail(store: Store, host: Host, w: Workout, onClose: () -> U
                         track, null,
                         Modifier.fillMaxWidth().height(300.dp).clip(RoundedCornerShape(20.dp)),
                         interactive = false,
+                        dark = !rememberDaylight().value,
                     )
                 }
                 Panel(Modifier.fillMaxWidth()) {

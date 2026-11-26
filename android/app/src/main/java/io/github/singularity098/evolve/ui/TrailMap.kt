@@ -40,6 +40,7 @@ import org.maplibre.geojson.Point
  * dot where the workout started and one where you are. With [follow] the
  * map keeps you in the middle; a drag stops that ([onUserMoved]) until
  * [recenter] changes. Without [here] (a saved workout) it fits the trail.
+ * [dark] picks the dark map over the light one, and can change any time.
  */
 @Composable
 fun TrailMap(
@@ -50,6 +51,7 @@ fun TrailMap(
     interactive: Boolean = true,
     recenter: Int = 0,
     onUserMoved: () -> Unit = {},
+    dark: Boolean = true,
 ) {
     val context = LocalContext.current
     val look = LocalLook.current
@@ -90,44 +92,50 @@ fun TrailMap(
             m.addOnCameraMoveStartedListener { reason ->
                 if (reason == MapLibreMap.OnCameraMoveStartedListener.REASON_API_GESTURE) moved()
             }
-            m.setStyle(Style.Builder().fromUri(MapCache.STYLE)) { st ->
-                st.addSource(GeoJsonSource("trail"))
-                st.addSource(GeoJsonSource("start"))
-                st.addSource(GeoJsonSource("here"))
-                st.addLayer(
-                    LineLayer("trail-casing", "trail").withProperties(
-                        PropertyFactory.lineColor(android.graphics.Color.argb(160, 0, 0, 0)),
-                        PropertyFactory.lineWidth(8f),
-                        PropertyFactory.lineCap(Property.LINE_CAP_ROUND),
-                        PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND),
-                    )
+        }
+    }
+
+    // The map's look; a new one drops the old style's layers, so they're added again.
+    LaunchedEffect(map, dark) {
+        val m = map ?: return@LaunchedEffect
+        style = null
+        m.setStyle(Style.Builder().fromUri(if (dark) MapCache.STYLE_DARK else MapCache.STYLE)) { st ->
+            st.addSource(GeoJsonSource("trail"))
+            st.addSource(GeoJsonSource("start"))
+            st.addSource(GeoJsonSource("here"))
+            st.addLayer(
+                LineLayer("trail-casing", "trail").withProperties(
+                    PropertyFactory.lineColor(android.graphics.Color.argb(160, 0, 0, 0)),
+                    PropertyFactory.lineWidth(8f),
+                    PropertyFactory.lineCap(Property.LINE_CAP_ROUND),
+                    PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND),
                 )
-                st.addLayer(
-                    LineLayer("trail-line", "trail").withProperties(
-                        PropertyFactory.lineColor(look.paintB.toArgb()),
-                        PropertyFactory.lineWidth(5f),
-                        PropertyFactory.lineCap(Property.LINE_CAP_ROUND),
-                        PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND),
-                    )
+            )
+            st.addLayer(
+                LineLayer("trail-line", "trail").withProperties(
+                    PropertyFactory.lineColor(look.paintB.toArgb()),
+                    PropertyFactory.lineWidth(5f),
+                    PropertyFactory.lineCap(Property.LINE_CAP_ROUND),
+                    PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND),
                 )
-                st.addLayer(
-                    CircleLayer("start-dot", "start").withProperties(
-                        PropertyFactory.circleRadius(7f),
-                        PropertyFactory.circleColor(android.graphics.Color.rgb(95, 211, 154)),
-                        PropertyFactory.circleStrokeColor(android.graphics.Color.WHITE),
-                        PropertyFactory.circleStrokeWidth(2.5f),
-                    )
+            )
+            st.addLayer(
+                CircleLayer("start-dot", "start").withProperties(
+                    PropertyFactory.circleRadius(7f),
+                    PropertyFactory.circleColor(android.graphics.Color.rgb(95, 211, 154)),
+                    PropertyFactory.circleStrokeColor(android.graphics.Color.WHITE),
+                    PropertyFactory.circleStrokeWidth(2.5f),
                 )
-                st.addLayer(
-                    CircleLayer("here-dot", "here").withProperties(
-                        PropertyFactory.circleRadius(8f),
-                        PropertyFactory.circleColor(look.paintA.toArgb()),
-                        PropertyFactory.circleStrokeColor(android.graphics.Color.WHITE),
-                        PropertyFactory.circleStrokeWidth(3f),
-                    )
+            )
+            st.addLayer(
+                CircleLayer("here-dot", "here").withProperties(
+                    PropertyFactory.circleRadius(8f),
+                    PropertyFactory.circleColor(look.paintA.toArgb()),
+                    PropertyFactory.circleStrokeColor(android.graphics.Color.WHITE),
+                    PropertyFactory.circleStrokeWidth(3f),
                 )
-                style = st
-            }
+            )
+            style = st
         }
     }
 
