@@ -17,23 +17,19 @@ import kotlin.math.cos
  * signal still has its map: on the first fix, and again whenever the
  * workout has gone half the way to the edge, everything within the
  * radius chosen in Settings (10 miles at first) is downloaded, at every
- * zoom the vector tiles have, for both the light and the dark map (they
- * share the tiles, so the second costs only its style, icons and fonts).
+ * zoom the vector tiles have, for the light and the dark map chosen in
+ * Settings (every style shares OpenFreeMap's tiles, so a second costs
+ * only its style, icons and fonts).
  * Areas older than two weeks are deleted.
  */
 object MapCache {
-    /** OpenFreeMap: free vector tiles, no key, no limits, offline use allowed. */
-    const val STYLE = "https://tiles.openfreemap.org/styles/liberty"
-
-    /** The same tiles, drawn dark: for indoors and night. */
-    const val STYLE_DARK = "https://tiles.openfreemap.org/styles/dark"
     private const val MAX_AGE_MS = 14L * 24 * 3600 * 1000
 
     private var lastLat = Double.NaN
     private var lastLon = Double.NaN
 
     /** Main thread only (MapLibre's rule). */
-    fun ensure(context: Context, lat: Double, lon: Double, miles: Double) {
+    fun ensure(context: Context, lat: Double, lon: Double, miles: Double, styles: List<String>) {
         val radius = (miles.coerceIn(1.0, 50.0)) * 1609.344
         if (!lastLat.isNaN() && haversineMeters(lastLat, lastLon, lat, lon) < radius / 2) return
         lastLat = lat
@@ -44,7 +40,7 @@ object MapCache {
             (lat + dLat).coerceAtMost(85.0), lon + dLon, (lat - dLat).coerceAtLeast(-85.0), lon - dLon,
         )
         val ratio = context.resources.displayMetrics.density
-        for (style in listOf(STYLE, STYLE_DARK)) download(context, OfflineTilePyramidRegionDefinition(style, bounds, 0.0, 14.0, ratio))
+        for (style in styles) download(context, OfflineTilePyramidRegionDefinition(style, bounds, 0.0, 14.0, ratio))
     }
 
     private fun download(context: Context, def: OfflineTilePyramidRegionDefinition) {

@@ -164,12 +164,13 @@ private fun WorkoutDetail(
     var editing by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf(false) }
     val track = remember(w.id) { if (w.gps != null) store.engine.track(w.id) else emptyList() }
-    // Light unless the moon button picks dark; kept between the small and the full-screen map.
-    var dark by rememberSaveable(w.id) { mutableStateOf(false) }
+    // As Settings say unless the sun/moon button pins light or dark; kept between the small and the full-screen map.
+    var pinned by rememberSaveable(w.id) { mutableStateOf<Boolean?>(null) }
+    val mapStyle = rememberMapStyle(s, pinned)
 
     if (mapOpen && track.isNotEmpty()) {
         BackHandler { onMapOpen(false) }
-        FullMap(track, dark, onDark = { dark = it }, onClose = { onMapOpen(false) })
+        FullMap(track, mapStyle, onDark = { pinned = it }, onClose = { onMapOpen(false) })
         return
     }
 
@@ -205,7 +206,7 @@ private fun WorkoutDetail(
                 if (track.isNotEmpty()) {
                     // A preview: a tap opens the map full screen, to pan and zoom.
                     Box(Modifier.fillMaxWidth().height(300.dp).clip(RoundedCornerShape(20.dp))) {
-                        TrailMap(track, null, Modifier.fillMaxSize(), interactive = false, dark = dark)
+                        TrailMap(track, null, Modifier.fillMaxSize(), interactive = false, style = mapStyle)
                         Box(Modifier.matchParentSize().clickable(onClickLabel = "Open the map") { onMapOpen(true) })
                         FilledTonalIconButton(
                             onClick = { onMapOpen(true) },
@@ -363,10 +364,10 @@ private fun WorkoutDetail(
 
 /** A saved workout's trail, full screen: drag to pan, pinch to zoom. */
 @Composable
-private fun FullMap(track: List<io.github.singularity098.evolve.core.TrackPoint>, dark: Boolean, onDark: (Boolean) -> Unit, onClose: () -> Unit) {
+private fun FullMap(track: List<io.github.singularity098.evolve.core.TrackPoint>, style: MapStyle, onDark: (Boolean) -> Unit, onClose: () -> Unit) {
     var refit by remember { mutableIntStateOf(0) }
     Box(Modifier.fillMaxSize()) {
-        TrailMap(track, null, Modifier.fillMaxSize(), recenter = refit, dark = dark)
+        TrailMap(track, null, Modifier.fillMaxSize(), recenter = refit, style = style)
         FilledTonalIconButton(
             onClick = onClose,
             modifier = Modifier.align(Alignment.TopStart).statusBarsPadding().padding(12.dp).size(48.dp),
@@ -375,8 +376,8 @@ private fun FullMap(track: List<io.github.singularity098.evolve.core.TrackPoint>
             Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            FilledTonalIconButton(onClick = { onDark(!dark) }, modifier = Modifier.size(48.dp)) {
-                if (dark) Icon(EvolveIcons.Sun, "Light map") else Icon(EvolveIcons.Moon, "Dark map")
+            FilledTonalIconButton(onClick = { onDark(!style.dark) }, modifier = Modifier.size(48.dp)) {
+                if (style.dark) Icon(EvolveIcons.Sun, "Light map") else Icon(EvolveIcons.Moon, "Dark map")
             }
             FilledTonalIconButton(onClick = { refit++ }, modifier = Modifier.size(48.dp)) {
                 Icon(EvolveIcons.Fit, "Show the whole trail")

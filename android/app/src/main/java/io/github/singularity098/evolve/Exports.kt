@@ -3,6 +3,9 @@ package io.github.singularity098.evolve
 import android.content.Context
 import android.net.Uri
 import android.provider.DocumentsContract
+import java.io.ByteArrayOutputStream
+import java.util.zip.GZIPInputStream
+import java.util.zip.GZIPOutputStream
 
 /** Files in the folder the person chose (a document tree), through the storage framework. */
 object Exports {
@@ -40,7 +43,15 @@ object Exports {
         }
     }
 
-    fun read(context: Context, uri: Uri): String =
-        context.contentResolver.openInputStream(uri)?.use { it.readBytes().toString(Charsets.UTF_8) }
+    fun gzip(bytes: ByteArray): ByteArray =
+        ByteArrayOutputStream().also { out -> GZIPOutputStream(out).use { it.write(bytes) } }.toByteArray()
+
+    /** An export's text: gzipped (as exports are now) or plain JSON (as they were). */
+    fun read(context: Context, uri: Uri): String {
+        val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
             ?: throw IllegalStateException("The file could not be opened")
+        val gzipped = bytes.size >= 2 && bytes[0] == 0x1f.toByte() && bytes[1] == 0x8b.toByte()
+        val raw = if (gzipped) GZIPInputStream(bytes.inputStream()).use { it.readBytes() } else bytes
+        return raw.toString(Charsets.UTF_8)
+    }
 }

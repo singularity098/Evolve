@@ -113,6 +113,32 @@ pub struct Settings {
     pub vibrate: bool,
     /// The day weeks start on, 1 (Monday) to 7 (Sunday), as ISO counts them.
     pub week_start_day: u32,
+    /// How many automatic exports are kept in the export folder.
+    pub auto_export_keep: u32,
+    /// When the map is dark: by the light sensor (indoors and at night), or always light or dark.
+    pub map_mode: MapMode,
+    /// The light map's style, by name (see the app's MapStyles.kt).
+    pub map_light_style: String,
+    /// The dark map's style, by name.
+    pub map_dark_style: String,
+    /// How strongly text stands out from the background, whatever the theme.
+    pub contrast: Contrast,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, uniffi::Enum)]
+#[serde(rename_all = "snake_case")]
+pub enum MapMode {
+    Auto,
+    Light,
+    Dark,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, uniffi::Enum)]
+#[serde(rename_all = "snake_case")]
+pub enum Contrast {
+    Standard,
+    High,
+    Maximum,
 }
 
 impl Default for Settings {
@@ -133,6 +159,11 @@ impl Default for Settings {
             sounds: true,
             vibrate: true,
             week_start_day: 7,
+            auto_export_keep: 10,
+            map_mode: MapMode::Auto,
+            map_light_style: "Liberty".into(),
+            map_dark_style: "Night".into(),
+            contrast: Contrast::Standard,
         }
     }
 }

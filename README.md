@@ -28,7 +28,9 @@ on a GPS workout's map, which takes the drag for itself):
   did. Tap a day to open its workout in History (or pick from a list when
   there were several).
 * **Settings**: design routines and interval programs, the exercise
-  library, the weigh-in log, units, sounds, the backup folder, the look.
+  library, the weigh-in log, units, sounds, the backup folder, the look
+  (a theme, and a contrast level: Standard, High or Maximum, for brighter
+  text in a sturdier face, whatever the theme), the maps' styles.
 
 ### Workouts
 
@@ -74,6 +76,14 @@ halfway to the edge; it's a few megabytes. Areas older than two weeks are
 deleted. Place names come from OpenStreetMap's Nominatim, then Android's
 geocoder.
 
+The map is dark indoors and at night and light outside in daylight, by
+the light sensor (or always light, or always dark: a setting); the sun and
+moon button on a map switches it for that workout. Five light styles
+(Liberty, Bright, Paper, Ink, Trail) and five dark ones (Night, Midnight,
+Fiord, Red light, Contrast) to choose from: all but Liberty and Bright are
+OpenFreeMap's Positron repainted by the app with bolder roads and labels,
+so they share the same tiles and the same offline cache.
+
 Other good free map sources, should OpenFreeMap ever not suit:
 [MapTiler](https://www.maptiler.com) and [Stadia Maps](https://stadiamaps.com)
 (free tiers, with a key), [Thunderforest](https://www.thunderforest.com)
@@ -85,10 +95,11 @@ downloading).
 
 *Settings → Your data*: choose a folder, then **Export now** writes
 everything (settings, the exercise library, routines, programs, every
-workout with its GPS track, and every weigh-in) to one JSON file there.
-**Export after every workout** does it automatically as soon as a workout
-is saved, keeping the last ten. **Import** merges an export (adding what
-isn't here yet) or replaces everything with it.
+workout with its GPS track, and every weigh-in) to one gzipped JSON file
+there (`.json.gz`). **Export after every workout** does it automatically
+as soon as a workout is saved, keeping the last ten (a setting). **Import**
+merges an export (adding what isn't here yet) or replaces everything with
+it; older plain `.json` exports still import.
 
 ## Building
 

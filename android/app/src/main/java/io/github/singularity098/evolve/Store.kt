@@ -187,9 +187,10 @@ class Store(private val context: Context) {
             val ok = withContext(ioDispatcher) {
                 try {
                     val json = engine.exportJson(now)
-                    val name = exportFileName(if (auto) "auto" else "backup", now, offsetMin(now))
-                    Exports.write(context, Uri.parse(uri), name, "application/json", json.toByteArray()).also {
-                        if (auto && it) Exports.prune(context, Uri.parse(uri), "evolve-auto-", 10)
+                    val name = exportFileName(if (auto) "auto" else "backup", now, offsetMin(now)) + ".gz"
+                    // octet-stream, so the folder keeps the name as given (a gzip type can earn a second .gz).
+                    Exports.write(context, Uri.parse(uri), name, "application/octet-stream", Exports.gzip(json.toByteArray())).also {
+                        if (auto && it) Exports.prune(context, Uri.parse(uri), "evolve-auto-", settings.autoExportKeep.toInt().coerceAtLeast(1))
                     }
                 } catch (t: Throwable) {
                     Log.e("evolve", "export failed", t)

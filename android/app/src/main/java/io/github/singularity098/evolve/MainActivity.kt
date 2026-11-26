@@ -116,7 +116,7 @@ class MainActivity : ComponentActivity(), Host {
     override fun pickImport(replace: Boolean) {
         importReplace = replace
         try {
-            pickImport.launch(arrayOf("application/json", "text/plain", "application/octet-stream", "*/*"))
+            pickImport.launch(arrayOf("application/gzip", "application/x-gzip", "application/json", "text/plain", "application/octet-stream", "*/*"))
         } catch (_: Exception) {
             Toast.makeText(this, "The file picker could not be shown", Toast.LENGTH_LONG).show()
         }

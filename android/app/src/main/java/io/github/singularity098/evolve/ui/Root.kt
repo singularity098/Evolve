@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.singularity098.evolve.Store
+import io.github.singularity098.evolve.core.Contrast
 import io.github.singularity098.evolve.core.kindUsesGps
 import kotlinx.coroutines.launch
 
@@ -71,8 +72,8 @@ interface Host {
 @Composable
 fun EvolveRoot(store: Store, host: Host) {
     val library by store.library.collectAsStateWithLifecycle()
-    val look = lookNamed(library.settings.theme)
-    EvolveTheme(look) {
+    EvolveTheme(lookNamed(library.settings.theme), library.settings.contrast) {
+        val look = LocalLook.current
         val session by store.session.collectAsStateWithLifecycle()
         val hasSession = session != null
         // The In progress tab is there only while a workout is under way.
@@ -128,7 +129,7 @@ fun EvolveRoot(store: Store, host: Host) {
         }
 
         Scaffold(
-            containerColor = EvolveBackground,
+            containerColor = MaterialTheme.colorScheme.background,
             snackbarHost = { SnackbarHost(snackbar) },
             bottomBar = {
                 NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainerLow, tonalElevation = 0.dp) {
@@ -143,7 +144,7 @@ fun EvolveRoot(store: Store, host: Host) {
                                 else Icon(t.icon, t.label, Modifier.size(24.dp))
                             },
                             label = {
-                                Text(t.label, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(t.label, fontSize = if (LocalContrast.current == Contrast.STANDARD) 10.sp else 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             },
                             colors = NavigationBarItemDefaults.colors(
                                 indicatorColor = look.paintC.copy(alpha = 0.22f),
@@ -159,10 +160,13 @@ fun EvolveRoot(store: Store, host: Host) {
             Box(
                 Modifier
                     .fillMaxSize()
-                    .background(EvolveBackground)
+                    .background(MaterialTheme.colorScheme.background)
                     .background(
-                        // A glow of the theme behind everything, as in Chippy.
-                        Brush.radialGradient(listOf(look.paintC.copy(alpha = 0.10f), Color.Transparent), radius = 1400f)
+                        // A glow of the theme behind everything, as in Chippy (fainter with more contrast).
+                        Brush.radialGradient(
+                            listOf(look.paintC.copy(alpha = if (LocalContrast.current == Contrast.STANDARD) 0.10f else 0.05f), Color.Transparent),
+                            radius = 1400f,
+                        )
                     )
                     .padding(padding),
             ) {

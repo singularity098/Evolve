@@ -16,7 +16,6 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import io.github.singularity098.evolve.MapCache
 import io.github.singularity098.evolve.core.TrackPoint
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.camera.CameraUpdateFactory
@@ -41,7 +40,7 @@ import org.maplibre.geojson.Point
  * map keeps you in the middle; a drag stops that ([onUserMoved]) until
  * [recenter] changes. Without [here] (a saved workout) it fits the trail,
  * and fits it again whenever [recenter] changes.
- * [dark] picks the dark map over the light (the default), any time.
+ * [style] is the map's look (see [rememberMapStyle]); it can change any time.
  */
 @Composable
 fun TrailMap(
@@ -52,14 +51,14 @@ fun TrailMap(
     interactive: Boolean = true,
     recenter: Int = 0,
     onUserMoved: () -> Unit = {},
-    dark: Boolean = false,
+    style: MapStyle = LightMapStyles[0],
 ) {
     val context = LocalContext.current
     val look = LocalLook.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val mapView = remember { MapView(context).apply { onCreate(null) } }
     var map by remember { mutableStateOf<MapLibreMap?>(null) }
-    var style by remember { mutableStateOf<Style?>(null) }
+    var loaded by remember { mutableStateOf<Style?>(null) }
     var placed by remember { mutableStateOf(false) }
     // The [recenter] a saved trail was last fitted for.
     var fitted by remember { mutableStateOf<Int?>(null) }
@@ -99,10 +98,11 @@ fun TrailMap(
     }
 
     // The map's look; a new one drops the old style's layers, so they're added again.
-    LaunchedEffect(map, dark) {
+    LaunchedEffect(map, style) {
         val m = map ?: return@LaunchedEffect
-        style = null
-        m.setStyle(Style.Builder().fromUri(if (dark) MapCache.STYLE_DARK else MapCache.STYLE)) { st ->
+        loaded = null
+        m.setStyle(Style.Builder().fromUri(style.base)) { st ->
+            style.palette?.let { applyPalette(st, it) }
             st.addSource(GeoJsonSource("trail"))
             st.addSource(GeoJsonSource("start"))
             st.addSource(GeoJsonSource("here"))
@@ -138,13 +138,13 @@ fun TrailMap(
                     PropertyFactory.circleStrokeWidth(3f),
                 )
             )
-            style = st
+            loaded = st
         }
     }
 
     // The trail, a line per segment (pauses break it).
-    LaunchedEffect(style, trail, recenter) {
-        val st = style ?: return@LaunchedEffect
+    LaunchedEffect(loaded, trail, recenter) {
+        val st = loaded ?: return@LaunchedEffect
         val lines = trail.groupBy { it.seg }.values.filter { it.size >= 2 }.map { seg ->
             Feature.fromGeometry(LineString.fromLngLats(seg.map { Point.fromLngLat(it.lon, it.lat) }))
         }
@@ -171,8 +171,8 @@ fun TrailMap(
         }
     }
 
-    LaunchedEffect(style, here, follow, recenter) {
-        val st = style ?: return@LaunchedEffect
+    LaunchedEffect(loaded, here, follow, recenter) {
+        val st = loaded ?: return@LaunchedEffect
         val h = here ?: return@LaunchedEffect
         st.getSourceAs<GeoJsonSource>("here")?.setGeoJson(Point.fromLngLat(h.longitude, h.latitude))
         val m = map ?: return@LaunchedEffect

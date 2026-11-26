@@ -3,6 +3,7 @@ package io.github.singularity098.evolve.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -31,7 +32,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.singularity098.evolve.Store
+import io.github.singularity098.evolve.core.Contrast
 import io.github.singularity098.evolve.core.DistanceUnit
+import io.github.singularity098.evolve.core.MapMode
 import io.github.singularity098.evolve.core.WeightUnit
 import io.github.singularity098.evolve.core.formatDuration
 import io.github.singularity098.evolve.core.formatNumber
@@ -149,6 +152,28 @@ private fun MainSettings(store: Store, host: Host, open: (SettingsPage) -> Unit)
 
         item { SectionTitle("Maps") }
         item {
+            Column(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+                Text("Light or dark", style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    when (s.mapMode) {
+                        MapMode.AUTO -> "By the light sensor: dark indoors and at night, light outside in daylight"
+                        MapMode.LIGHT -> "Always the light map"
+                        MapMode.DARK -> "Always the dark map"
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(MapMode.AUTO to "Automatic", MapMode.LIGHT to "Light", MapMode.DARK to "Dark").forEach { (m, label) ->
+                        FilterChip(s.mapMode == m, { store.updateSettings { it.copy(mapMode = m) } }, { Text(label) })
+                    }
+                }
+            }
+        }
+        item { MapStylePicker("Light map", LightMapStyles, s.mapLightStyle) { n -> store.updateSettings { it.copy(mapLightStyle = n) } } }
+        item { MapStylePicker("Dark map", DarkMapStyles, s.mapDarkStyle) { n -> store.updateSettings { it.copy(mapDarkStyle = n) } } }
+        item { Hint("The sun and moon button on a map switches it for that workout.") }
+        item {
             StepRow("Offline map radius", "${formatNumber(s.mapCacheMiles, 0u)} mi", "Kept around GPS workouts, for when the signal goes") { d ->
                 store.updateSettings { it.copy(mapCacheMiles = (it.mapCacheMiles + d * 5).coerceIn(5.0, 50.0)) }
             }
@@ -178,9 +203,14 @@ private fun MainSettings(store: Store, host: Host, open: (SettingsPage) -> Unit)
             }
         }
         item {
-            SwitchRow("Export after every workout", "Everything is saved to the export folder as soon as a workout is (the last 10 kept).", s.autoExport) { on ->
+            SwitchRow("Export after every workout", "Everything is saved to the export folder as soon as a workout is.", s.autoExport) { on ->
                 if (on && s.exportUri.isEmpty()) host.pickExportFolder()
                 store.updateSettings { it.copy(autoExport = on) }
+            }
+        }
+        item {
+            StepRow("Automatic exports kept", "${s.autoExportKeep}", "Older ones are deleted. Exports are gzipped JSON (.json.gz).") { d ->
+                store.updateSettings { it.copy(autoExportKeep = (it.autoExportKeep.toInt() + d).coerceIn(1, 100).toUInt()) }
             }
         }
         item {
@@ -189,12 +219,31 @@ private fun MainSettings(store: Store, host: Host, open: (SettingsPage) -> Unit)
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                 leadingContent = { PaintedIcon(EvolveIcons.Import) },
                 headlineContent = { Text("Import…") },
-                supportingContent = { Text("From an Evolve export (a .json file)") },
+                supportingContent = { Text("From an Evolve export (.json.gz, or an older .json)") },
             )
         }
 
         item { SectionTitle("Look") }
         item { ThemePicker(s.theme) { name -> store.updateSettings { it.copy(theme = name) } } }
+        item {
+            Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                Text("Contrast", style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    when (s.contrast) {
+                        Contrast.STANDARD -> "As the theme is drawn"
+                        Contrast.HIGH -> "Brighter text in a sturdier face, plainer edges"
+                        Contrast.MAXIMUM -> "White text, larger, on black"
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ContrastNames.forEach { (c, label) ->
+                        FilterChip(s.contrast == c, { store.updateSettings { it.copy(contrast = c) } }, { Text(label) })
+                    }
+                }
+            }
+        }
 
         item { SectionTitle("About") }
         item { Hint("Evolve: weights, walks, runs, hikes, rides, intervals, meditation and breathing, kept on this phone. Styled after Chippy.") }

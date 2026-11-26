@@ -11,12 +11,14 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import io.github.singularity098.evolve.R
+import io.github.singularity098.evolve.core.Contrast
 
 /**
  * Evolve's looks, Chippy's own (Chippy's ui/Theme.kt) and Lotus, the icon's:
@@ -64,6 +66,29 @@ val EvolveBackground = Color(0xFF15151A)
 
 val LocalLook = staticCompositionLocalOf { Looks[0] }
 
+/** The contrast chosen in Settings, for the few things drawn outside the colour scheme. */
+val LocalContrast = staticCompositionLocalOf { Contrast.STANDARD }
+
+/** The contrast levels' names, in the order Settings shows them. */
+val ContrastNames = listOf(
+    Contrast.STANDARD to "Standard",
+    Contrast.HIGH to "High",
+    Contrast.MAXIMUM to "Maximum",
+)
+
+/**
+ * The look with its text made to stand out more, whatever the theme:
+ * High lifts the text and the dim text towards white; Maximum makes the
+ * text white and the dim text nearly so.
+ */
+fun Look.withContrast(c: Contrast): Look = when (c) {
+    Contrast.STANDARD -> this
+    Contrast.HIGH -> copy(text = lerp(text, Color.White, 0.55f), textDim = lerp(textDim, Color.White, 0.4f))
+    Contrast.MAXIMUM -> copy(text = Color.White, textDim = lerp(textDim, Color.White, 0.68f))
+}
+
+private fun backgroundFor(c: Contrast) = if (c == Contrast.MAXIMUM) Color(0xFF000000) else EvolveBackground
+
 private val Jost = FontFamily(
     Font(R.font.jost_light, FontWeight.Light),
     Font(R.font.jost_regular, FontWeight.Normal),
@@ -71,11 +96,24 @@ private val Jost = FontFamily(
     Font(R.font.jost_regular, FontWeight.Medium),
 )
 
-/** Material 3's type scale in Jost, a little larger (Jost runs small). */
-private fun evolveTypography(): Typography {
+/**
+ * Material 3's type scale in Jost, a little larger (Jost runs small). With
+ * more [contrast] the light faces give way to the regular one (thin
+ * strokes are what make Jost hard to read), and at Maximum it's larger again.
+ */
+private fun evolveTypography(contrast: Contrast): Typography {
     val base = Typography()
-    fun TextStyle.jost(weight: FontWeight = FontWeight.Normal, bump: Float = 1f) =
-        copy(fontFamily = Jost, fontWeight = weight, fontSize = (fontSize.value + bump).sp)
+    val extra = if (contrast == Contrast.MAXIMUM) 1f else 0f
+    fun TextStyle.jost(weight: FontWeight = FontWeight.Normal, bump: Float = 1f): TextStyle {
+        val w = when {
+            weight != FontWeight.Light -> weight
+            contrast == Contrast.MAXIMUM -> FontWeight.Normal
+            // High: the body text gets the regular face; big display and headline type can stay light.
+            contrast == Contrast.HIGH && (fontSize.value + bump) < 22f -> FontWeight.Normal
+            else -> weight
+        }
+        return copy(fontFamily = Jost, fontWeight = w, fontSize = (fontSize.value + bump + extra).sp)
+    }
     return Typography(
         displayLarge = base.displayLarge.jost(FontWeight.Light),
         displayMedium = base.displayMedium.jost(FontWeight.Light),
@@ -95,20 +133,28 @@ private fun evolveTypography(): Typography {
     )
 }
 
-private fun schemeFor(look: Look): ColorScheme = darkColorScheme(
+private fun schemeFor(look: Look, contrast: Contrast): ColorScheme {
+    val bg = backgroundFor(contrast)
+    // Lines and panel edges: fainter at Standard, plainer with more contrast.
+    val (outline, outlineVariant) = when (contrast) {
+        Contrast.STANDARD -> Color(0x40FFFFFF) to Color(0x1FFFFFFF)
+        Contrast.HIGH -> Color(0x73FFFFFF) to Color(0x38FFFFFF)
+        Contrast.MAXIMUM -> Color(0xA6FFFFFF) to Color(0x5CFFFFFF)
+    }
+    return darkColorScheme(
     primary = look.paintB,
     onPrimary = Color.Black,
-    primaryContainer = look.paintC.copy(alpha = 0.28f).compositeOver(EvolveBackground),
+    primaryContainer = look.paintC.copy(alpha = 0.28f).compositeOver(bg),
     onPrimaryContainer = look.text,
     secondary = look.paintA,
     onSecondary = Color.Black,
-    secondaryContainer = look.paintA.copy(alpha = 0.22f).compositeOver(EvolveBackground),
+    secondaryContainer = look.paintA.copy(alpha = 0.22f).compositeOver(bg),
     onSecondaryContainer = look.text,
     tertiary = look.paintC,
     onTertiary = Color.Black,
-    background = EvolveBackground,
+    background = bg,
     onBackground = look.text,
-    surface = EvolveBackground,
+    surface = bg,
     onSurface = look.text,
     surfaceVariant = Color(0xFF23232A),
     onSurfaceVariant = look.textDim,
@@ -119,14 +165,15 @@ private fun schemeFor(look: Look): ColorScheme = darkColorScheme(
     surfaceContainerHighest = Color(0xFF282831),
     surfaceBright = Color(0xFF2E2E38),
     inverseSurface = look.text,
-    inverseOnSurface = EvolveBackground,
+    inverseOnSurface = bg,
     inversePrimary = look.paintC,
-    outline = Color(0x40FFFFFF),
-    outlineVariant = Color(0x1FFFFFFF),
-    error = Color(0xFFE5484D),
+    outline = outline,
+    outlineVariant = outlineVariant,
+    error = if (contrast == Contrast.STANDARD) Color(0xFFE5484D) else Color(0xFFFF6B6F),
     onError = Color.Black,
     scrim = Color(0xB3000000),
 )
+}
 
 private fun Color.compositeOver(bg: Color): Color {
     val a = alpha
@@ -139,11 +186,12 @@ private fun Color.compositeOver(bg: Color): Color {
 }
 
 @Composable
-fun EvolveTheme(look: Look, content: @Composable () -> Unit) {
-    CompositionLocalProvider(LocalLook provides look) {
+fun EvolveTheme(look: Look, contrast: Contrast = Contrast.STANDARD, content: @Composable () -> Unit) {
+    val shown = look.withContrast(contrast)
+    CompositionLocalProvider(LocalLook provides shown, LocalContrast provides contrast) {
         MaterialTheme(
-            colorScheme = schemeFor(look),
-            typography = evolveTypography(),
+            colorScheme = schemeFor(shown, contrast),
+            typography = evolveTypography(contrast),
             content = content,
         )
     }

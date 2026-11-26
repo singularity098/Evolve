@@ -194,3 +194,17 @@ fn weeks_start_on_the_chosen_day() {
     let g = e.graph(q);
     assert_eq!(g.points.iter().map(|p| (p.t_ms, p.value)).collect::<Vec<_>>(), vec![(sunday - 6 * DAY, 1.0), (sunday + DAY, 1.0)]);
 }
+
+#[test]
+fn old_settings_take_new_defaults() {
+    let s: Settings = serde_json::from_str(r#"{"theme":"Iris","week_start_day":1}"#).unwrap();
+    assert_eq!(s.theme, "Iris");
+    assert_eq!(s.week_start_day, 1);
+    assert_eq!(s.auto_export_keep, 10);
+    assert_eq!(s.map_mode, MapMode::Auto);
+    assert_eq!(s.map_light_style, "Liberty");
+    assert_eq!(s.map_dark_style, "Night");
+    assert_eq!(s.contrast, Contrast::Standard);
+    let back: Settings = serde_json::from_str(&serde_json::to_string(&s).unwrap()).unwrap();
+    assert_eq!(back, s);
+}
