@@ -55,6 +55,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -175,8 +176,8 @@ private fun LiftingScreen(store: Store, session: Session, onFinish: () -> Unit) 
             }
             itemsIndexed(l.exercises) { ei, e ->
                 val current = ei == l.current.toInt()
-                // Every set done: the exercise is marked off, darker and quieter (its text greyed),
-                // until a set is added (or one undone).
+                // Every set done: the exercise is marked off, its card darker and everything on it
+                // faded out like a disabled control, until a set is added (or one undone).
                 val finished = e.sets.isNotEmpty() && e.sets.all { it.done }
                 val shape = RoundedCornerShape(20.dp)
                 var menu by remember { mutableStateOf(false) }
@@ -188,14 +189,13 @@ private fun LiftingScreen(store: Store, session: Session, onFinish: () -> Unit) 
                         .border(if (current && !finished) 2.dp else 1.dp, if (current && !finished) look.paint() else Brush.linearGradient(listOf(MaterialTheme.colorScheme.outlineVariant, MaterialTheme.colorScheme.outlineVariant)), shape)
                         .clickable { store.live { selectExercise(ei.toUInt()) } },
                 ) {
-                    Column(Modifier.padding(16.dp)) {
+                    Column(Modifier.alpha(if (finished) 0.38f else 1f).padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             if (finished) PaintedIcon(EvolveIcons.Check, Modifier.padding(end = 10.dp).size(26.dp), "Done")
                             Column(Modifier.weight(1f)) {
                                 Text(
                                     e.name,
                                     style = MaterialTheme.typography.titleLarge,
-                                    color = if (finished) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
                                 )
                                 val doneSets = e.sets.count { it.done }
                                 Text(
@@ -274,8 +274,7 @@ private fun LiftingScreen(store: Store, session: Session, onFinish: () -> Unit) 
                                             fontWeight = FontWeight.Medium,
                                             textAlign = TextAlign.Center,
                                             color = when {
-                                                finished -> MaterialTheme.colorScheme.onSurfaceVariant
-                                                set.done -> Color.Black
+                                                set.done && !finished -> Color.Black
                                                 else -> MaterialTheme.colorScheme.onSurface
                                             },
                                         )
