@@ -78,7 +78,9 @@ fun EvolveRoot(store: Store, host: Host) {
         // The In progress tab is there only while a workout is under way.
         val pages = if (hasSession) Tab.entries.toList() else Tab.entries.filter { it != Tab.Workout }
         val pagesNow by rememberUpdatedState(pages)
-        val pager = rememberPagerState { pages.size }
+        // The pager reads pagesNow, not pages: its count and its keys can be asked for in
+        // different frames, and a captured list goes stale when the In progress tab comes or goes.
+        val pager = rememberPagerState { pagesNow.size }
         var tab by rememberSaveable { mutableStateOf(if (hasSession) Tab.Workout else Tab.Home) }
         var openWorkout by rememberSaveable { mutableStateOf<String?>(null) }
         val snackbar = remember { SnackbarHostState() }
@@ -161,15 +163,16 @@ fun EvolveRoot(store: Store, host: Host) {
                     state = pager,
                     userScrollEnabled = !onMap,
                     beyondViewportPageCount = 0,
-                    key = { pages[it] },
+                    key = { pagesNow.getOrNull(it)?.name ?: "page-$it" },
                 ) { i ->
-                    when (pages[i]) {
+                    when (pagesNow.getOrNull(i)) {
                         Tab.Home -> HomeScreen(store, host)
                         Tab.Workout -> session?.let { InProgressScreen(store, it) }
                         Tab.History -> HistoryScreen(store, host, openWorkout) { openWorkout = it }
                         Tab.Graphs -> GraphsScreen(store)
                         Tab.Calendar -> CalendarScreen(store)
                         Tab.Settings -> SettingsScreen(store, host)
+                        null -> {}
                     }
                 }
             }
