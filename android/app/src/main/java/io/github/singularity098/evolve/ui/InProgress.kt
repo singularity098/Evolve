@@ -175,7 +175,7 @@ private fun LiftingScreen(store: Store, session: Session, onFinish: () -> Unit) 
             }
             itemsIndexed(l.exercises) { ei, e ->
                 val current = ei == l.current.toInt()
-                // Every set done: the exercise is marked off, darker and quieter,
+                // Every set done: the exercise is marked off, darker and quieter (its text greyed),
                 // until a set is added (or one undone).
                 val finished = e.sets.isNotEmpty() && e.sets.all { it.done }
                 val shape = RoundedCornerShape(20.dp)
@@ -192,7 +192,11 @@ private fun LiftingScreen(store: Store, session: Session, onFinish: () -> Unit) 
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             if (finished) PaintedIcon(EvolveIcons.Check, Modifier.padding(end = 10.dp).size(26.dp), "Done")
                             Column(Modifier.weight(1f)) {
-                                Text(e.name, style = MaterialTheme.typography.titleLarge)
+                                Text(
+                                    e.name,
+                                    style = MaterialTheme.typography.titleLarge,
+                                    color = if (finished) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                                )
                                 val doneSets = e.sets.count { it.done }
                                 Text(
                                     if (finished) "Done · ${e.sets.size} sets"
@@ -269,7 +273,11 @@ private fun LiftingScreen(store: Store, session: Session, onFinish: () -> Unit) 
                                             style = MaterialTheme.typography.titleLarge,
                                             fontWeight = FontWeight.Medium,
                                             textAlign = TextAlign.Center,
-                                            color = if (set.done && !finished) Color.Black else MaterialTheme.colorScheme.onSurface,
+                                            color = when {
+                                                finished -> MaterialTheme.colorScheme.onSurfaceVariant
+                                                set.done -> Color.Black
+                                                else -> MaterialTheme.colorScheme.onSurface
+                                            },
                                         )
                                     }
                                 }
