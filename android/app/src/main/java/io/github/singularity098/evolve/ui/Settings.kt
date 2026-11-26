@@ -35,7 +35,12 @@ import io.github.singularity098.evolve.core.DistanceUnit
 import io.github.singularity098.evolve.core.WeightUnit
 import io.github.singularity098.evolve.core.formatDuration
 import io.github.singularity098.evolve.core.formatNumber
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import java.net.URLDecoder
+import java.time.DayOfWeek
+import java.time.format.TextStyle
+import java.util.Locale
 
 /** Settings' own pages, opened from its list. */
 private enum class SettingsPage { Main, Exercises, Routines, Programs, BodyWeights }
@@ -125,6 +130,20 @@ private fun MainSettings(store: Store, host: Host, open: (SettingsPage) -> Unit)
             Row(Modifier.padding(horizontal = 16.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(s.distanceUnit == DistanceUnit.MI, { store.updateSettings { it.copy(distanceUnit = DistanceUnit.MI) } }, { Text("Miles") })
                 FilterChip(s.distanceUnit == DistanceUnit.KM, { store.updateSettings { it.copy(distanceUnit = DistanceUnit.KM) } }, { Text("Kilometres") })
+            }
+        }
+
+        item { SectionTitle("Weeks start on") }
+        item {
+            val days = listOf(7, 1, 2, 3, 4, 5, 6)
+            LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(days) { d ->
+                    FilterChip(
+                        s.weekStartDay.toInt() == d,
+                        { store.updateSettings { it.copy(weekStartDay = d.toUInt()) } },
+                        { Text(DayOfWeek.of(d).getDisplayName(TextStyle.SHORT, Locale.getDefault())) },
+                    )
+                }
             }
         }
 

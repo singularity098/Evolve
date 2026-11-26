@@ -162,30 +162,12 @@ private fun LiftingScreen(store: Store, session: Session, onFinish: () -> Unit) 
             progress = { if (all == 0) 0f else done.toFloat() / all },
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(4.dp).clip(CircleShape),
         )
-        // The rest between sets.
-        val until = l.restUntilMs
-        if (until != null && until > now) {
-            val left = until - now
-            Panel(Modifier.fillMaxWidth().padding(16.dp)) {
-                Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("REST", style = MaterialTheme.typography.labelLarge, letterSpacing = 2.sp, color = look.accent)
-                    Text(countdown(left), style = MaterialTheme.typography.displayMedium)
-                    LinearProgressIndicator(
-                        progress = { (left.toFloat() / (l.restTotalSecs.toFloat() * 1000).coerceAtLeast(1f)).coerceIn(0f, 1f) },
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp).height(6.dp).clip(CircleShape),
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = { store.live { adjustRest(-15, System.currentTimeMillis()) } }) { Text("−15 s") }
-                        OutlinedButton(onClick = { store.live { adjustRest(30, System.currentTimeMillis()) } }) { Text("+30 s") }
-                        Button(onClick = { store.live { adjustRest(0, System.currentTimeMillis()) } }) { Text("Skip") }
-                    }
-                }
-            }
-        }
+        Box(Modifier.weight(1f)) {
         LazyColumn(
             state = list,
-            modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(16.dp),
+            modifier = Modifier.fillMaxSize(),
+            // Room at the end for the rest panel, always, so nothing moves when it comes and goes.
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = REST_ROOM),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             if (l.exercises.isEmpty()) {
@@ -277,13 +259,20 @@ private fun LiftingScreen(store: Store, session: Session, onFinish: () -> Unit) 
                                             fontWeight = FontWeight.Medium,
                                             color = if (set.done) Color.Black else MaterialTheme.colorScheme.onSurface,
                                         )
-                                        if (set.weightKg != pending?.weightKg || set.done) {
-                                            Text(
-                                                weightNumber(set.weightKg, s),
-                                                fontSize = 10.sp,
-                                                color = if (set.done) Color.Black.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant,
-                                            )
-                                        }
+                                        // Always laid out (just unseen when it's the weight above),
+                                        // so the reps don't jump when it shows.
+                                        val showWeight = set.weightKg != pending?.weightKg || set.done
+                                        Text(
+                                            weightNumber(set.weightKg, s),
+                                            fontSize = 10.sp,
+                                            lineHeight = 12.sp,
+                                            maxLines = 1,
+                                            color = when {
+                                                !showWeight -> Color.Transparent
+                                                set.done -> Color.Black.copy(alpha = 0.7f)
+                                                else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                            },
+                                        )
                                     }
                                 }
                             }
@@ -296,14 +285,6 @@ private fun LiftingScreen(store: Store, session: Session, onFinish: () -> Unit) 
                                 contentAlignment = Alignment.Center,
                             ) { Icon(EvolveIcons.Plus, "Add a set", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
                         }
-                        if (current) {
-                            Text(
-                                "Tap a set when it's done; hold it to change its reps or weight.",
-                                Modifier.padding(top = 10.dp),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
                     }
                 }
             }
@@ -313,6 +294,23 @@ private fun LiftingScreen(store: Store, session: Session, onFinish: () -> Unit) 
                     Text("Add exercise", Modifier.padding(start = 8.dp))
                 }
             }
+            if (l.exercises.isNotEmpty()) {
+                item {
+                    Text(
+                        "Tap a set when it's done; hold it to change its reps or weight.",
+                        Modifier.fillMaxWidth(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+            }
+        }
+        // The rest between sets, floating over the bottom of the list.
+        val until = l.restUntilMs
+        if (until != null && until > now) {
+            RestPanel(store, until - now, l.restTotalSecs.toLong() * 1000, Modifier.align(Alignment.BottomCenter))
+        }
         }
     }
 
@@ -338,6 +336,35 @@ private fun LiftingScreen(store: Store, session: Session, onFinish: () -> Unit) 
     }
     if (adding) {
         ExercisePicker(store, onPick = { id -> store.live { addSessionExercise(id) } }, onClose = { adding = false })
+    }
+}
+
+/** What the lifting list keeps free at its end for the rest panel. */
+private val REST_ROOM = 190.dp
+
+@Composable
+private fun RestPanel(store: Store, leftMs: Long, totalMs: Long, modifier: Modifier = Modifier) {
+    val look = LocalLook.current
+    Panel(modifier.fillMaxWidth().padding(12.dp)) {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("REST", style = MaterialTheme.typography.labelLarge, letterSpacing = 2.sp, color = look.accent)
+                Text(
+                    countdown(leftMs),
+                    Modifier.padding(start = 12.dp).weight(1f),
+                    style = MaterialTheme.typography.headlineLarge,
+                )
+                Button(onClick = { store.live { adjustRest(0, System.currentTimeMillis()) } }) { Text("Skip") }
+            }
+            LinearProgressIndicator(
+                progress = { (leftMs.toFloat() / totalMs.toFloat().coerceAtLeast(1f)).coerceIn(0f, 1f) },
+                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp).height(6.dp).clip(CircleShape),
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = { store.live { adjustRest(-15, System.currentTimeMillis()) } }, Modifier.weight(1f)) { Text("−15 s") }
+                OutlinedButton(onClick = { store.live { adjustRest(30, System.currentTimeMillis()) } }, Modifier.weight(1f)) { Text("+30 s") }
+            }
+        }
     }
 }
 
@@ -429,10 +456,8 @@ private fun GpsScreen(store: Store, session: Session, onFinish: () -> Unit) {
     val s = store.settings
     var follow by rememberSaveable { mutableStateOf(true) }
     var recenter by remember { mutableIntStateOf(0) }
-    // The map follows the light sensor until the button picks a look for this workout.
-    val daylight by rememberDaylight()
-    var pinnedDark by rememberSaveable { mutableStateOf<Boolean?>(null) }
-    val dark = pinnedDark ?: !daylight
+    // The light map unless the moon button picks the dark one for this workout.
+    var dark by rememberSaveable { mutableStateOf(false) }
     val g = gps ?: session.gps
     val paused = session.pausedAtMs != null
 
@@ -475,7 +500,7 @@ private fun GpsScreen(store: Store, session: Session, onFinish: () -> Unit) {
             }
         }
         FilledTonalIconButton(
-            onClick = { pinnedDark = !dark },
+            onClick = { dark = !dark },
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(end = 16.dp, bottom = 116.dp)

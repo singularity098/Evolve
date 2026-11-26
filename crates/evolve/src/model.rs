@@ -111,6 +111,8 @@ pub struct Settings {
     pub meditation_minutes: u32,
     pub sounds: bool,
     pub vibrate: bool,
+    /// The day weeks start on, 1 (Monday) to 7 (Sunday), as ISO counts them.
+    pub week_start_day: u32,
 }
 
 impl Default for Settings {
@@ -130,6 +132,7 @@ impl Default for Settings {
             meditation_minutes: 10,
             sounds: true,
             vibrate: true,
+            week_start_day: 7,
         }
     }
 }

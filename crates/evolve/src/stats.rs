@@ -220,9 +220,11 @@ pub fn graph(db: &Database, q: &GraphQuery) -> GraphSeries {
         Metric::WorkoutsPerWeek | Metric::MinutesPerWeek => {
             let offset = q.utc_offset_min as i64 * 60_000;
             const WEEK: i64 = 7 * 86_400_000;
-            // 1970-01-01 was a Thursday: weeks start on Monday, 3 days earlier.
-            let monday0 = -3 * 86_400_000i64;
-            let week_of = |t: i64| (t + offset - monday0).div_euclid(WEEK);
+            // 1970-01-01 was a Thursday (ISO day 4): the first week start
+            // on or before it is this many days earlier.
+            let start = db.settings.week_start_day.clamp(1, 7) as i64;
+            let week0 = -((4 - start).rem_euclid(7)) * 86_400_000i64;
+            let week_of = |t: i64| (t + offset - week0).div_euclid(WEEK);
             let mut weeks: Vec<(i64, f64)> = vec![];
             for w in &workouts {
                 let k = week_of(w.started_at_ms);
@@ -242,7 +244,7 @@ pub fn graph(db: &Database, q: &GraphQuery) -> GraphSeries {
             }
             let pts = weeks
                 .into_iter()
-                .map(|(k, v)| GraphPoint { t_ms: k * WEEK + monday0 - offset, value: v, workout_id: None })
+                .map(|(k, v)| GraphPoint { t_ms: k * WEEK + week0 - offset, value: v, workout_id: None })
                 .collect();
             if q.metric == Metric::WorkoutsPerWeek {
                 series("Workouts per week".into(), "workouts", pts)

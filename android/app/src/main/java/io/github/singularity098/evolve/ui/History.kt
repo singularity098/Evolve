@@ -2,6 +2,10 @@ package io.github.singularity098.evolve.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -57,7 +61,17 @@ import io.github.singularity098.evolve.core.weightIn
 import java.time.format.DateTimeFormatter
 
 @Composable
-fun HistoryScreen(store: Store, host: Host, open: String?, onOpen: (String?) -> Unit) {
+fun HistoryScreen(
+    store: Store,
+    host: Host,
+    open: String?,
+    onOpen: (String?) -> Unit,
+    mapOpen: Boolean = false,
+    onMapOpen: (Boolean) -> Unit = {},
+) {
+    // Up here, outside the branch, so they're kept while a workout is open.
+    var kinds by rememberSaveable { mutableStateOf(setOf<WorkoutKind>()) }
+    var query by rememberSaveable { mutableStateOf("") }
     if (open != null) {
         val version by store.historyVersion.collectAsStateWithLifecycle()
         val w = remember(open, version) { store.engine.workout(open) }
@@ -66,12 +80,10 @@ fun HistoryScreen(store: Store, host: Host, open: String?, onOpen: (String?) -> 
             return
         }
         BackHandler { onOpen(null) }
-        WorkoutDetail(store, host, w, onClose = { onOpen(null) })
+        WorkoutDetail(store, host, w, onClose = { onOpen(null) }, mapOpen = mapOpen, onMapOpen = onMapOpen)
         return
     }
     val version by store.historyVersion.collectAsStateWithLifecycle()
-    var kinds by rememberSaveable { mutableStateOf(setOf<WorkoutKind>()) }
-    var query by rememberSaveable { mutableStateOf("") }
     val list = remember(version, kinds, query) { store.engine.history(HistoryFilter(kinds.toList(), query)) }
     val months = DateTimeFormatter.ofPattern("MMMM yyyy")
 
@@ -140,11 +152,26 @@ fun HistoryScreen(store: Store, host: Host, open: String?, onOpen: (String?) -> 
 }
 
 @Composable
-private fun WorkoutDetail(store: Store, host: Host, w: Workout, onClose: () -> Unit) {
+private fun WorkoutDetail(
+    store: Store,
+    host: Host,
+    w: Workout,
+    onClose: () -> Unit,
+    mapOpen: Boolean,
+    onMapOpen: (Boolean) -> Unit,
+) {
     val s = store.settings
     var editing by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf(false) }
     val track = remember(w.id) { if (w.gps != null) store.engine.track(w.id) else emptyList() }
+    // Light unless the moon button picks dark; kept between the small and the full-screen map.
+    var dark by rememberSaveable(w.id) { mutableStateOf(false) }
+
+    if (mapOpen && track.isNotEmpty()) {
+        BackHandler { onMapOpen(false) }
+        FullMap(track, dark, onDark = { dark = it }, onClose = { onMapOpen(false) })
+        return
+    }
 
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
         Row(Modifier.fillMaxWidth().padding(4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -176,12 +203,15 @@ private fun WorkoutDetail(store: Store, host: Host, w: Workout, onClose: () -> U
 
             w.gps?.let { g ->
                 if (track.isNotEmpty()) {
-                    TrailMap(
-                        track, null,
-                        Modifier.fillMaxWidth().height(300.dp).clip(RoundedCornerShape(20.dp)),
-                        interactive = false,
-                        dark = !rememberDaylight().value,
-                    )
+                    // A preview: a tap opens the map full screen, to pan and zoom.
+                    Box(Modifier.fillMaxWidth().height(300.dp).clip(RoundedCornerShape(20.dp))) {
+                        TrailMap(track, null, Modifier.fillMaxSize(), interactive = false, dark = dark)
+                        Box(Modifier.matchParentSize().clickable(onClickLabel = "Open the map") { onMapOpen(true) })
+                        FilledTonalIconButton(
+                            onClick = { onMapOpen(true) },
+                            modifier = Modifier.align(Alignment.BottomEnd).padding(10.dp).size(44.dp),
+                        ) { Icon(EvolveIcons.Expand, "Open the map") }
+                    }
                 }
                 Panel(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -328,5 +358,29 @@ private fun WorkoutDetail(store: Store, host: Host, w: Workout, onClose: () -> U
             },
             onClose = { deleting = false },
         )
+    }
+}
+
+/** A saved workout's trail, full screen: drag to pan, pinch to zoom. */
+@Composable
+private fun FullMap(track: List<io.github.singularity098.evolve.core.TrackPoint>, dark: Boolean, onDark: (Boolean) -> Unit, onClose: () -> Unit) {
+    var refit by remember { mutableIntStateOf(0) }
+    Box(Modifier.fillMaxSize()) {
+        TrailMap(track, null, Modifier.fillMaxSize(), recenter = refit, dark = dark)
+        FilledTonalIconButton(
+            onClick = onClose,
+            modifier = Modifier.align(Alignment.TopStart).statusBarsPadding().padding(12.dp).size(48.dp),
+        ) { Icon(EvolveIcons.Back, "Back") }
+        Column(
+            Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            FilledTonalIconButton(onClick = { onDark(!dark) }, modifier = Modifier.size(48.dp)) {
+                if (dark) Icon(EvolveIcons.Sun, "Light map") else Icon(EvolveIcons.Moon, "Dark map")
+            }
+            FilledTonalIconButton(onClick = { refit++ }, modifier = Modifier.size(48.dp)) {
+                Icon(EvolveIcons.Fit, "Show the whole trail")
+            }
+        }
     }
 }

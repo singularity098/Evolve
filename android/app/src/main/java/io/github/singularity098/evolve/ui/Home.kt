@@ -35,7 +35,6 @@ import io.github.singularity098.evolve.core.HistoryFilter
 import io.github.singularity098.evolve.core.WorkoutKind
 import io.github.singularity098.evolve.core.kindLabel
 import io.github.singularity098.evolve.core.kindUsesGps
-import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.temporal.TemporalAdjusters
@@ -73,7 +72,7 @@ fun HomeScreen(store: Store, host: Host) {
     val today = LocalDate.now()
     val history = remember(version) { store.engine.history(HistoryFilter(emptyList(), "")) }
     val weights = remember(version) { store.engine.bodyWeights() }
-    val weekStart = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+    val weekStart = today.with(TemporalAdjusters.previousOrSame(weekStart(s)))
     val thisWeek = history.count { !localDate(it.startedAtMs).isBefore(weekStart) }
     val days = history.map { localDate(it.startedAtMs) }.toSet()
     // Days in a row with a workout, ending today (or yesterday, if not yet today).

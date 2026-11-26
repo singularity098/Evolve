@@ -39,8 +39,9 @@ import org.maplibre.geojson.Point
  * The map (MapLibre, OpenFreeMap's tiles) with the trail drawn on it, a
  * dot where the workout started and one where you are. With [follow] the
  * map keeps you in the middle; a drag stops that ([onUserMoved]) until
- * [recenter] changes. Without [here] (a saved workout) it fits the trail.
- * [dark] picks the dark map over the light one, and can change any time.
+ * [recenter] changes. Without [here] (a saved workout) it fits the trail,
+ * and fits it again whenever [recenter] changes.
+ * [dark] picks the dark map over the light (the default), any time.
  */
 @Composable
 fun TrailMap(
@@ -51,7 +52,7 @@ fun TrailMap(
     interactive: Boolean = true,
     recenter: Int = 0,
     onUserMoved: () -> Unit = {},
-    dark: Boolean = true,
+    dark: Boolean = false,
 ) {
     val context = LocalContext.current
     val look = LocalLook.current
@@ -60,6 +61,8 @@ fun TrailMap(
     var map by remember { mutableStateOf<MapLibreMap?>(null) }
     var style by remember { mutableStateOf<Style?>(null) }
     var placed by remember { mutableStateOf(false) }
+    // The [recenter] a saved trail was last fitted for.
+    var fitted by remember { mutableStateOf<Int?>(null) }
     val moved by rememberUpdatedState(onUserMoved)
 
     DisposableEffect(lifecycle) {
@@ -140,7 +143,7 @@ fun TrailMap(
     }
 
     // The trail, a line per segment (pauses break it).
-    LaunchedEffect(style, trail) {
+    LaunchedEffect(style, trail, recenter) {
         val st = style ?: return@LaunchedEffect
         val lines = trail.groupBy { it.seg }.values.filter { it.size >= 2 }.map { seg ->
             Feature.fromGeometry(LineString.fromLngLats(seg.map { Point.fromLngLat(it.lon, it.lat) }))
@@ -149,17 +152,22 @@ fun TrailMap(
         trail.firstOrNull()?.let { p ->
             st.getSourceAs<GeoJsonSource>("start")?.setGeoJson(Point.fromLngLat(p.lon, p.lat))
         }
-        // A saved workout: the whole trail in view.
-        if (here == null && trail.isNotEmpty() && !placed) {
+        // A saved workout: the whole trail in view (at once the first time, gliding after).
+        if (here == null && trail.isNotEmpty() && fitted != recenter) {
+            val first = fitted == null
+            fitted = recenter
             placed = true
             val m = map ?: return@LaunchedEffect
-            if (trail.size == 1) {
-                m.cameraPosition = CameraPosition.Builder().target(LatLng(trail[0].lat, trail[0].lon)).zoom(15.0).build()
+            val update = if (trail.size == 1) {
+                CameraUpdateFactory.newCameraPosition(
+                    CameraPosition.Builder().target(LatLng(trail[0].lat, trail[0].lon)).zoom(15.0).build()
+                )
             } else {
                 val b = LatLngBounds.Builder()
                 trail.forEach { b.include(LatLng(it.lat, it.lon)) }
-                m.moveCamera(CameraUpdateFactory.newLatLngBounds(b.build(), 80))
+                CameraUpdateFactory.newLatLngBounds(b.build(), 80)
             }
+            if (first) m.moveCamera(update) else m.animateCamera(update, 500)
         }
     }
 

@@ -169,3 +169,28 @@ fn graphs() {
 fn file_names() {
     assert_eq!(export_file_name("auto".into(), 1_700_000_000_000, -300), "evolve-auto-2023-11-14_171320.json");
 }
+
+#[test]
+fn weeks_start_on_the_chosen_day() {
+    let (_d, e) = engine();
+    const DAY: i64 = 86_400_000;
+    // 2023-11-12 was a Sunday; log a workout on Sunday and one on Monday.
+    let sunday = 1_699_747_200_000i64;
+    e.log_manual(WorkoutKind::Meditation, "".into(), sunday + 3_600_000, 600.0, None, "".into()).unwrap();
+    e.log_manual(WorkoutKind::Meditation, "".into(), sunday + DAY + 3_600_000, 600.0, None, "".into()).unwrap();
+    let q = GraphQuery { metric: Metric::WorkoutsPerWeek, exercise_id: None, kinds: vec![], since_ms: None, utc_offset_min: 0 };
+
+    // Sunday by default: both in one week, which starts that Sunday.
+    assert_eq!(e.library().settings.week_start_day, 7);
+    let g = e.graph(q.clone());
+    assert_eq!(g.points.len(), 1);
+    assert_eq!(g.points[0].t_ms, sunday);
+    assert_eq!(g.points[0].value, 2.0);
+
+    // Monday: Sunday ends one week, Monday starts the next.
+    let mut s = e.library().settings;
+    s.week_start_day = 1;
+    e.set_settings(s).unwrap();
+    let g = e.graph(q);
+    assert_eq!(g.points.iter().map(|p| (p.t_ms, p.value)).collect::<Vec<_>>(), vec![(sunday - 6 * DAY, 1.0), (sunday + DAY, 1.0)]);
+}

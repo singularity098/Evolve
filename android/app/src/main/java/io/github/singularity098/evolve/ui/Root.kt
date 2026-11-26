@@ -83,6 +83,8 @@ fun EvolveRoot(store: Store, host: Host) {
         val pager = rememberPagerState { pagesNow.size }
         var tab by rememberSaveable { mutableStateOf(if (hasSession) Tab.Workout else Tab.Home) }
         var openWorkout by rememberSaveable { mutableStateOf<String?>(null) }
+        // A saved GPS workout's map, opened full screen.
+        var historyMap by rememberSaveable { mutableStateOf(false) }
         val snackbar = remember { SnackbarHostState() }
 
         LaunchedEffect(hasSession) {
@@ -112,13 +114,18 @@ fun EvolveRoot(store: Store, host: Host) {
         LaunchedEffect(Unit) {
             store.showWorkout.collect { id ->
                 openWorkout = id
+                historyMap = false
                 tab = Tab.History
             }
         }
         BackHandler(enabled = tab != Tab.Home && tab != Tab.Workout) { tab = Tab.Home }
 
         // A GPS workout's map takes sideways drags for itself.
-        val onMap = pages.getOrNull(pager.currentPage) == Tab.Workout && session?.let { kindUsesGps(it.kind) } == true
+        val onMap = when (pages.getOrNull(pager.currentPage)) {
+            Tab.Workout -> session?.let { kindUsesGps(it.kind) } == true
+            Tab.History -> historyMap && openWorkout != null
+            else -> false
+        }
 
         Scaffold(
             containerColor = EvolveBackground,
@@ -168,7 +175,15 @@ fun EvolveRoot(store: Store, host: Host) {
                     when (pagesNow.getOrNull(i)) {
                         Tab.Home -> HomeScreen(store, host)
                         Tab.Workout -> session?.let { InProgressScreen(store, it) }
-                        Tab.History -> HistoryScreen(store, host, openWorkout) { openWorkout = it }
+                        Tab.History -> HistoryScreen(
+                            store, host, openWorkout,
+                            onOpen = {
+                                openWorkout = it
+                                historyMap = false
+                            },
+                            mapOpen = historyMap,
+                            onMapOpen = { historyMap = it },
+                        )
                         Tab.Graphs -> GraphsScreen(store)
                         Tab.Calendar -> CalendarScreen(store)
                         Tab.Settings -> SettingsScreen(store, host)

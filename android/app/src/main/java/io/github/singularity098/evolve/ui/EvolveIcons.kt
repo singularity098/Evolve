@@ -299,6 +299,12 @@ object EvolveIcons {
             line = "M 12 16 A 4 4 0 1 1 12 8 A 4 4 0 1 1 12 16 Z M 12 2.5 L 12 4.5 M 12 19.5 L 12 21.5 M 2.5 12 L 4.5 12 M 19.5 12 L 21.5 12 M 5.3 5.3 L 6.7 6.7 M 17.3 17.3 L 18.7 18.7 M 5.3 18.7 L 6.7 17.3 M 17.3 6.7 L 18.7 5.3",
         )
     }
+    val Expand: ImageVector by lazy {
+        icon("Expand", line = "M 14 4 L 20 4 L 20 10 M 20 4 L 13.5 10.5 M 10 20 L 4 20 L 4 14 M 4 20 L 10.5 13.5")
+    }
+    val Fit: ImageVector by lazy {
+        icon("Fit", line = "M 4 9 L 4 4 L 9 4 M 15 4 L 20 4 L 20 9 M 20 15 L 20 20 L 15 20 M 9 20 L 4 20 L 4 15 M 8.5 15 L 11 11 L 13 13.5 L 15.5 9")
+    }
     val Moon: ImageVector by lazy {
         icon("Moon", line = "M 19.5 14.5 A 8 8 0 1 1 9.5 4.5 A 6.5 6.5 0 0 0 19.5 14.5 Z")
     }

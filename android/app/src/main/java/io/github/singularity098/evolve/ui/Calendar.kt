@@ -38,7 +38,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.singularity098.evolve.Store
 import io.github.singularity098.evolve.core.formatDuration
-import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
@@ -52,6 +51,8 @@ fun CalendarScreen(store: Store) {
     val month = YearMonth.parse(monthText)
     var selected by rememberSaveable { mutableStateOf<String?>(null) }
     val look = LocalLook.current
+    val library by store.library.collectAsStateWithLifecycle()
+    val start = weekStart(library.settings)
     val today = LocalDate.now()
 
     val first = month.atDay(1)
@@ -59,8 +60,8 @@ fun CalendarScreen(store: Store) {
         store.engine.workoutsBetween(dayStartMs(first), dayStartMs(month.plusMonths(1).atDay(1)))
     }
     val byDay = workouts.groupBy { localDate(it.startedAtMs) }
-    // Weeks start on Monday.
-    val lead = (first.dayOfWeek.value - DayOfWeek.MONDAY.value + 7) % 7
+    // Weeks start on the day chosen in Settings.
+    val lead = (first.dayOfWeek.value - start.value + 7) % 7
     val cells = lead + month.lengthOfMonth()
     val rows = (cells + 6) / 7
 
@@ -80,7 +81,7 @@ fun CalendarScreen(store: Store) {
             TextButton(onClick = { monthText = YearMonth.now().toString() }, Modifier.align(Alignment.CenterHorizontally)) { Text("Back to today") }
         }
         Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp)) {
-            DayOfWeek.entries.forEach { d ->
+            (0L until 7L).map { start.plus(it) }.forEach { d ->
                 Text(
                     d.getDisplayName(TextStyle.SHORT, Locale.getDefault()),
                     Modifier.weight(1f),
