@@ -54,16 +54,16 @@ jobs:
 
       - name: Build
         run: |
-          version="${GITHUB_REF_NAME#v}"
-          if [ "$GITHUB_REF_TYPE" != tag ]; then
-            version="$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "evolve") | .version')-$(git rev-parse --short HEAD)"
+          # Gradle names the version (the workspace's and the commit); a tag
+          # gives its own.
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            export EVOLVE_VERSION_NAME="${GITHUB_REF_NAME#v}"
           fi
-          export EVOLVE_VERSION_NAME="$version"
           export EVOLVE_VERSION_CODE="$GITHUB_RUN_NUMBER"
           android/build-apk.sh release
           mkdir -p dist
-          cp android/app/build/outputs/apk/release/app-release.apk "dist/Evolve-$version.apk"
-          echo "APK=Evolve-$version.apk" >> "$GITHUB_ENV"
+          cp android/app/build/outputs/apk/release/Evolve-*.apk dist/
+          echo "APK=$(basename dist/Evolve-*.apk)" >> "$GITHUB_ENV"
 
       - uses: actions/upload-artifact@v4
         with:

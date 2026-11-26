@@ -7,6 +7,20 @@ plugins {
     id "org.jetbrains.kotlin.plugin.compose"
 }
 
+// The version: EVOLVE_VERSION_NAME when CI sets it (a v* tag's number),
+// otherwise the Cargo workspace's version and the commit built, so every
+// APK, local or from CI, says what it is in its name and in the app.
+def cargoVersion = (rootProject.file("../Cargo.toml").text =~ /(?m)^version\s*=\s*"([^"]+)"/)[0][1]
+def commit = ""
+try {
+    def git = ["git", "-C", rootDir.path, "rev-parse", "--short", "HEAD"].execute()
+    def out = git.text.trim()
+    if (git.waitFor() == 0) commit = out
+} catch (ignored) {
+    // No git: the version alone.
+}
+def appVersion = System.getenv("EVOLVE_VERSION_NAME") ?: [cargoVersion, commit].findAll().join("-")
+
 android {
     namespace "io.github.singularity098.evolve"
     compileSdk 35
@@ -17,7 +31,7 @@ android {
         minSdk 26
         targetSdk 35
         versionCode Integer.parseInt(System.getenv("EVOLVE_VERSION_CODE") ?: "1")
-        versionName System.getenv("EVOLVE_VERSION_NAME") ?: "0.1.0"
+        versionName appVersion
         ndk {
             abiFilters "arm64-v8a"
         }
@@ -61,6 +75,14 @@ android {
     sourceSets {
         // The engine's Kotlin bindings, generated from the Rust library.
         main.java.srcDirs += "build/generated/uniffi"
+    }
+
+    // Evolve-<version>.apk (and Evolve-<version>-debug.apk) instead of app-release.apk.
+    applicationVariants.all { variant ->
+        variant.outputs.all {
+            def type = variant.buildType.name == "release" ? "" : "-${variant.buildType.name}"
+            outputFileName = "Evolve-${variant.versionName}${type}.apk"
+        }
     }
 
     packagingOptions {
