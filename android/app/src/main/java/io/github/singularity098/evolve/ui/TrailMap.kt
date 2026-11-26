@@ -51,7 +51,7 @@ fun TrailMap(
     interactive: Boolean = true,
     recenter: Int = 0,
     onUserMoved: () -> Unit = {},
-    style: MapStyle = LightMapStyles[0],
+    style: MapStyle = LightMap,
 ) {
     val context = LocalContext.current
     val look = LocalLook.current

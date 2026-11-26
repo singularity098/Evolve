@@ -38,12 +38,7 @@ import io.github.singularity098.evolve.core.MapMode
 import io.github.singularity098.evolve.core.WeightUnit
 import io.github.singularity098.evolve.core.formatDuration
 import io.github.singularity098.evolve.core.formatNumber
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import java.net.URLDecoder
-import java.time.DayOfWeek
-import java.time.format.TextStyle
-import java.util.Locale
 
 /** Settings' own pages, opened from its list. */
 private enum class SettingsPage { Main, Exercises, Routines, Programs, BodyWeights }
@@ -136,20 +131,6 @@ private fun MainSettings(store: Store, host: Host, open: (SettingsPage) -> Unit)
             }
         }
 
-        item { SectionTitle("Weeks start on") }
-        item {
-            val days = listOf(7, 1, 2, 3, 4, 5, 6)
-            LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(days) { d ->
-                    FilterChip(
-                        s.weekStartDay.toInt() == d,
-                        { store.updateSettings { it.copy(weekStartDay = d.toUInt()) } },
-                        { Text(DayOfWeek.of(d).getDisplayName(TextStyle.SHORT, Locale.getDefault())) },
-                    )
-                }
-            }
-        }
-
         item { SectionTitle("Maps") }
         item {
             Column(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
@@ -170,8 +151,6 @@ private fun MainSettings(store: Store, host: Host, open: (SettingsPage) -> Unit)
                 }
             }
         }
-        item { MapStylePicker("Light map", LightMapStyles, s.mapLightStyle) { n -> store.updateSettings { it.copy(mapLightStyle = n) } } }
-        item { MapStylePicker("Dark map", DarkMapStyles, s.mapDarkStyle) { n -> store.updateSettings { it.copy(mapDarkStyle = n) } } }
         item { Hint("The sun and moon button on a map switches it for that workout.") }
         item {
             StepRow("Offline map radius", "${formatNumber(s.mapCacheMiles, 0u)} mi", "Kept around GPS workouts, for when the signal goes") { d ->
@@ -231,8 +210,8 @@ private fun MainSettings(store: Store, host: Host, open: (SettingsPage) -> Unit)
                 Text(
                     when (s.contrast) {
                         Contrast.STANDARD -> "As the theme is drawn"
-                        Contrast.HIGH -> "Brighter text in a sturdier face, plainer edges"
-                        Contrast.MAXIMUM -> "White text, larger, on black"
+                        Contrast.HIGH -> "Brighter text, plainer edges"
+                        Contrast.MAXIMUM -> "White text on black"
                     },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,

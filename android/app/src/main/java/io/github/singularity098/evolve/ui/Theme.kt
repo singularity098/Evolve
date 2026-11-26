@@ -97,24 +97,14 @@ private val Jost = FontFamily(
 )
 
 /**
- * Material 3's type scale in Jost, a little larger (Jost runs small). With
- * more [contrast] the light faces give way to the regular one (thin
- * strokes are what make Jost hard to read), and at Maximum it's larger again.
+ * Material 3's type scale in Jost, a little larger (Jost runs small). The
+ * same at every contrast: contrast changes colours only.
  */
-private fun evolveTypography(contrast: Contrast): Typography {
+private val EvolveTypography: Typography = run {
     val base = Typography()
-    val extra = if (contrast == Contrast.MAXIMUM) 1f else 0f
-    fun TextStyle.jost(weight: FontWeight = FontWeight.Normal, bump: Float = 1f): TextStyle {
-        val w = when {
-            weight != FontWeight.Light -> weight
-            contrast == Contrast.MAXIMUM -> FontWeight.Normal
-            // High: the body text gets the regular face; big display and headline type can stay light.
-            contrast == Contrast.HIGH && (fontSize.value + bump) < 22f -> FontWeight.Normal
-            else -> weight
-        }
-        return copy(fontFamily = Jost, fontWeight = w, fontSize = (fontSize.value + bump + extra).sp)
-    }
-    return Typography(
+    fun TextStyle.jost(weight: FontWeight = FontWeight.Normal, bump: Float = 1f): TextStyle =
+        copy(fontFamily = Jost, fontWeight = weight, fontSize = (fontSize.value + bump).sp)
+    Typography(
         displayLarge = base.displayLarge.jost(FontWeight.Light),
         displayMedium = base.displayMedium.jost(FontWeight.Light),
         displaySmall = base.displaySmall.jost(FontWeight.Light),
@@ -191,7 +181,7 @@ fun EvolveTheme(look: Look, contrast: Contrast = Contrast.STANDARD, content: @Co
     CompositionLocalProvider(LocalLook provides shown, LocalContrast provides contrast) {
         MaterialTheme(
             colorScheme = schemeFor(shown, contrast),
-            typography = evolveTypography(contrast),
+            typography = EvolveTypography,
             content = content,
         )
     }

@@ -171,7 +171,7 @@ fn file_names() {
 }
 
 #[test]
-fn weeks_start_on_the_chosen_day() {
+fn weeks_start_on_sunday() {
     let (_d, e) = engine();
     const DAY: i64 = 86_400_000;
     // 2023-11-12 was a Sunday; log a workout on Sunday and one on Monday.
@@ -180,19 +180,15 @@ fn weeks_start_on_the_chosen_day() {
     e.log_manual(WorkoutKind::Meditation, "".into(), sunday + DAY + 3_600_000, 600.0, None, "".into()).unwrap();
     let q = GraphQuery { metric: Metric::WorkoutsPerWeek, exercise_id: None, kinds: vec![], since_ms: None, utc_offset_min: 0 };
 
-    // Sunday by default: both in one week, which starts that Sunday.
-    assert_eq!(e.library().settings.week_start_day, 7);
-    let g = e.graph(q.clone());
-    assert_eq!(g.points.len(), 1);
-    assert_eq!(g.points[0].t_ms, sunday);
-    assert_eq!(g.points[0].value, 2.0);
-
-    // Monday: Sunday ends one week, Monday starts the next.
+    // Weeks start on Sunday: both in one week, which starts that Sunday,
+    // even with an old Monday setting.
     let mut s = e.library().settings;
     s.week_start_day = 1;
     e.set_settings(s).unwrap();
     let g = e.graph(q);
-    assert_eq!(g.points.iter().map(|p| (p.t_ms, p.value)).collect::<Vec<_>>(), vec![(sunday - 6 * DAY, 1.0), (sunday + DAY, 1.0)]);
+    assert_eq!(g.points.len(), 1);
+    assert_eq!(g.points[0].t_ms, sunday);
+    assert_eq!(g.points[0].value, 2.0);
 }
 
 #[test]
@@ -202,8 +198,8 @@ fn old_settings_take_new_defaults() {
     assert_eq!(s.week_start_day, 1);
     assert_eq!(s.auto_export_keep, 10);
     assert_eq!(s.map_mode, MapMode::Auto);
-    assert_eq!(s.map_light_style, "Liberty");
-    assert_eq!(s.map_dark_style, "Night");
+    assert_eq!(s.map_light_style, "Bright");
+    assert_eq!(s.map_dark_style, "Midnight");
     assert_eq!(s.contrast, Contrast::Standard);
     let back: Settings = serde_json::from_str(&serde_json::to_string(&s).unwrap()).unwrap();
     assert_eq!(back, s);

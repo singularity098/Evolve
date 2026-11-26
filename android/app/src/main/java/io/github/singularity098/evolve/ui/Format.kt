@@ -50,8 +50,8 @@ private val zone: ZoneId get() = ZoneId.systemDefault()
 
 fun localDate(ms: Long): LocalDate = Instant.ofEpochMilli(ms).atZone(zone).toLocalDate()
 
-/** The day weeks start on (Settings, Sunday unless changed). */
-fun weekStart(s: Settings): java.time.DayOfWeek = java.time.DayOfWeek.of(s.weekStartDay.toInt().coerceIn(1, 7))
+/** Weeks start on Sunday. */
+val WeekStart: java.time.DayOfWeek = java.time.DayOfWeek.SUNDAY
 
 fun dayStartMs(d: LocalDate): Long = d.atStartOfDay(zone).toInstant().toEpochMilli()
 

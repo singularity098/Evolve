@@ -72,7 +72,7 @@ fun HomeScreen(store: Store, host: Host) {
     val today = LocalDate.now()
     val history = remember(version) { store.engine.history(HistoryFilter(emptyList(), "")) }
     val weights = remember(version) { store.engine.bodyWeights() }
-    val weekStart = today.with(TemporalAdjusters.previousOrSame(weekStart(s)))
+    val weekStart = today.with(TemporalAdjusters.previousOrSame(WeekStart))
     val thisWeek = history.count { !localDate(it.startedAtMs).isBefore(weekStart) }
     val days = history.map { localDate(it.startedAtMs) }.toSet()
     // Days in a row with a workout, ending today (or yesterday, if not yet today).

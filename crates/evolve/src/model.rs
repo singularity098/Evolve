@@ -111,15 +111,15 @@ pub struct Settings {
     pub meditation_minutes: u32,
     pub sounds: bool,
     pub vibrate: bool,
-    /// The day weeks start on, 1 (Monday) to 7 (Sunday), as ISO counts them.
+    /// No longer used: weeks always start on Sunday. Kept so old files still read.
     pub week_start_day: u32,
     /// How many automatic exports are kept in the export folder.
     pub auto_export_keep: u32,
     /// When the map is dark: by the light sensor (indoors and at night), or always light or dark.
     pub map_mode: MapMode,
-    /// The light map's style, by name (see the app's MapStyles.kt).
+    /// No longer used: the light map is always Bright. Kept so old files still read.
     pub map_light_style: String,
-    /// The dark map's style, by name.
+    /// No longer used: the dark map is always Midnight.
     pub map_dark_style: String,
     /// How strongly text stands out from the background, whatever the theme.
     pub contrast: Contrast,
@@ -161,8 +161,8 @@ impl Default for Settings {
             week_start_day: 7,
             auto_export_keep: 10,
             map_mode: MapMode::Auto,
-            map_light_style: "Liberty".into(),
-            map_dark_style: "Night".into(),
+            map_light_style: "Bright".into(),
+            map_dark_style: "Midnight".into(),
             contrast: Contrast::Standard,
         }
     }

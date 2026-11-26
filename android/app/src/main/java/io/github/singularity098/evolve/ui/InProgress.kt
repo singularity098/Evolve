@@ -226,64 +226,54 @@ private fun LiftingScreen(store: Store, session: Session, onFinish: () -> Unit) 
                                 }) { Text("+", style = MaterialTheme.typography.titleLarge) }
                             }
                         }
-                        // A button per set: its reps. A tap marks it done; hold to change it.
-                        FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            e.sets.forEachIndexed { si, set ->
-                                val next = !set.done && e.sets.take(si).all { it.done }
-                                Box(
-                                    Modifier
-                                        .size(56.dp)
-                                        .clip(CircleShape)
-                                        .then(
-                                            if (set.done) Modifier.background(look.paint())
-                                            else Modifier
-                                                .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-                                                .border(if (next) 2.dp else 1.dp, if (next) look.paintB else MaterialTheme.colorScheme.outline, CircleShape)
-                                        )
-                                        .combinedClickable(
-                                            onClick = {
-                                                val t = System.currentTimeMillis()
-                                                store.live {
-                                                    if (set.done) undoSet(ei.toUInt(), si.toUInt())
-                                                    else completeSet(ei.toUInt(), si.toUInt(), set.targetReps, t)
-                                                }
-                                            },
-                                            onLongClick = { editSet = ei to si },
-                                        ),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        // A button per set: its reps. A tap marks it done; hold to change it
+                        // (the set's weight shows there). Sized so six fit on a row.
+                        BoxWithConstraints(Modifier.fillMaxWidth()) {
+                            val gap = 8.dp
+                            val circle = ((maxWidth - gap * 5) / 6).coerceAtMost(52.dp)
+                            FlowRow(horizontalArrangement = Arrangement.spacedBy(gap), verticalArrangement = Arrangement.spacedBy(gap)) {
+                                e.sets.forEachIndexed { si, set ->
+                                    val next = !set.done && e.sets.take(si).all { it.done }
+                                    Box(
+                                        Modifier
+                                            .size(circle)
+                                            .clip(CircleShape)
+                                            .then(
+                                                if (set.done) Modifier.background(look.paint())
+                                                else Modifier
+                                                    .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                                                    .border(if (next) 2.dp else 1.dp, if (next) look.paintB else MaterialTheme.colorScheme.outline, CircleShape)
+                                            )
+                                            .combinedClickable(
+                                                onClick = {
+                                                    val t = System.currentTimeMillis()
+                                                    store.live {
+                                                        if (set.done) undoSet(ei.toUInt(), si.toUInt())
+                                                        else completeSet(ei.toUInt(), si.toUInt(), set.targetReps, t)
+                                                    }
+                                                },
+                                                onLongClick = { editSet = ei to si },
+                                            ),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
                                         Text(
                                             "${if (set.done) set.reps else set.targetReps}",
                                             style = MaterialTheme.typography.titleLarge,
                                             fontWeight = FontWeight.Medium,
+                                            textAlign = TextAlign.Center,
                                             color = if (set.done) Color.Black else MaterialTheme.colorScheme.onSurface,
-                                        )
-                                        // Always laid out (just unseen when it's the weight above),
-                                        // so the reps don't jump when it shows.
-                                        val showWeight = set.weightKg != pending?.weightKg || set.done
-                                        Text(
-                                            weightNumber(set.weightKg, s),
-                                            fontSize = 10.sp,
-                                            lineHeight = 12.sp,
-                                            maxLines = 1,
-                                            color = when {
-                                                !showWeight -> Color.Transparent
-                                                set.done -> Color.Black.copy(alpha = 0.7f)
-                                                else -> MaterialTheme.colorScheme.onSurfaceVariant
-                                            },
                                         )
                                     }
                                 }
+                                Box(
+                                    Modifier
+                                        .size(circle)
+                                        .clip(CircleShape)
+                                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
+                                        .clickable { store.live { addSet(ei.toUInt()) } },
+                                    contentAlignment = Alignment.Center,
+                                ) { Icon(EvolveIcons.Plus, "Add a set", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
                             }
-                            Box(
-                                Modifier
-                                    .size(56.dp)
-                                    .clip(CircleShape)
-                                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
-                                    .clickable { store.live { addSet(ei.toUInt()) } },
-                                contentAlignment = Alignment.Center,
-                            ) { Icon(EvolveIcons.Plus, "Add a set", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
                         }
                     }
                 }

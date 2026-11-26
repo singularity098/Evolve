@@ -52,7 +52,7 @@ fun CalendarScreen(store: Store) {
     var selected by rememberSaveable { mutableStateOf<String?>(null) }
     val look = LocalLook.current
     val library by store.library.collectAsStateWithLifecycle()
-    val start = weekStart(library.settings)
+    val start = WeekStart
     val today = LocalDate.now()
 
     val first = month.atDay(1)

@@ -23,7 +23,7 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
-import io.github.singularity098.evolve.ui.mapStylesToCache
+import io.github.singularity098.evolve.ui.MapStylesToCache
 import io.github.singularity098.evolve.core.BreathPhase
 import io.github.singularity098.evolve.core.Intensity
 import io.github.singularity098.evolve.core.Session
@@ -194,7 +194,7 @@ class WorkoutService : Service() {
             )
         )
         if (loc.hasAccuracy() && loc.accuracy < 50) {
-            MapCache.ensure(this, loc.latitude, loc.longitude, store.settings.mapCacheMiles, mapStylesToCache(store.settings))
+            MapCache.ensure(this, loc.latitude, loc.longitude, store.settings.mapCacheMiles, MapStylesToCache)
             if (!placeAsked && s.gps?.placeName.isNullOrEmpty()) {
                 placeAsked = true
                 val lat = loc.latitude

@@ -144,7 +144,7 @@ fun EvolveRoot(store: Store, host: Host) {
                                 else Icon(t.icon, t.label, Modifier.size(24.dp))
                             },
                             label = {
-                                Text(t.label, fontSize = if (LocalContrast.current == Contrast.STANDARD) 10.sp else 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(t.label, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             },
                             colors = NavigationBarItemDefaults.colors(
                                 indicatorColor = look.paintC.copy(alpha = 0.22f),

@@ -30,7 +30,7 @@ on a GPS workout's map, which takes the drag for itself):
 * **Settings**: design routines and interval programs, the exercise
   library, the weigh-in log, units, sounds, the backup folder, the look
   (a theme, and a contrast level: Standard, High or Maximum, for brighter
-  text in a sturdier face, whatever the theme), the maps' styles.
+  text and plainer edges, whatever the theme). Weeks start on Sunday.
 
 ### Workouts
 
@@ -78,11 +78,10 @@ geocoder.
 
 The map is dark indoors and at night and light outside in daylight, by
 the light sensor (or always light, or always dark: a setting); the sun and
-moon button on a map switches it for that workout. Five light styles
-(Liberty, Bright, Paper, Ink, Trail) and five dark ones (Night, Midnight,
-Fiord, Red light, Contrast) to choose from: all but Liberty and Bright are
-OpenFreeMap's Positron repainted by the app with bolder roads and labels,
-so they share the same tiles and the same offline cache.
+moon button on a map switches it for that workout. The light map is
+OpenFreeMap's Bright; the dark one, Midnight, is OpenFreeMap's Positron
+repainted by the app in deep navy with bolder roads and labels. Both use
+the same tiles and the same offline cache.
 
 Other good free map sources, should OpenFreeMap ever not suit:
 [MapTiler](https://www.maptiler.com) and [Stadia Maps](https://stadiamaps.com)
