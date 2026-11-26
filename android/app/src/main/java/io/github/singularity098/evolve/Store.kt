@@ -131,13 +131,22 @@ class Store(private val context: Context) {
         }
     }
 
-    fun addPoint(p: TrackPoint) {
+    /** Takes a GPS fix; true if it paused the workout (too fast for too long: a car). */
+    fun addPoint(p: TrackPoint): Boolean {
         try {
             val u = engine.addPoint(p)
             _gps.value = u.live
             u.kept?.let { _trail.value = _trail.value + it }
+            if (u.paused) {
+                // Paused back where the speed went up: the trail may have lost its last few points.
+                _session.value = engine.session()
+                _trail.value = engine.sessionTrack()
+                say("Paused: moving too fast for this workout (a car?). Resume to go on.")
+            }
+            return u.paused
         } catch (t: Throwable) {
             Log.e("evolve", "addPoint failed", t)
+            return false
         }
     }
 

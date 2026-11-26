@@ -175,23 +175,28 @@ private fun LiftingScreen(store: Store, session: Session, onFinish: () -> Unit) 
             }
             itemsIndexed(l.exercises) { ei, e ->
                 val current = ei == l.current.toInt()
+                // Every set done: the exercise is marked off, darker and quieter,
+                // until a set is added (or one undone).
+                val finished = e.sets.isNotEmpty() && e.sets.all { it.done }
                 val shape = RoundedCornerShape(20.dp)
                 var menu by remember { mutableStateOf(false) }
                 Box(
                     Modifier
                         .fillMaxWidth()
                         .clip(shape)
-                        .background(MaterialTheme.colorScheme.surfaceContainer)
-                        .border(if (current) 2.dp else 1.dp, if (current) look.paint() else Brush.linearGradient(listOf(MaterialTheme.colorScheme.outlineVariant, MaterialTheme.colorScheme.outlineVariant)), shape)
+                        .background(if (finished) MaterialTheme.colorScheme.surfaceContainerLowest else MaterialTheme.colorScheme.surfaceContainer)
+                        .border(if (current && !finished) 2.dp else 1.dp, if (current && !finished) look.paint() else Brush.linearGradient(listOf(MaterialTheme.colorScheme.outlineVariant, MaterialTheme.colorScheme.outlineVariant)), shape)
                         .clickable { store.live { selectExercise(ei.toUInt()) } },
                 ) {
                     Column(Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (finished) PaintedIcon(EvolveIcons.Check, Modifier.padding(end = 10.dp).size(26.dp), "Done")
                             Column(Modifier.weight(1f)) {
                                 Text(e.name, style = MaterialTheme.typography.titleLarge)
                                 val doneSets = e.sets.count { it.done }
                                 Text(
-                                    "${e.equipment.name.lowercase().replaceFirstChar { it.uppercase() }} · $doneSets of ${e.sets.size} sets · rest ${formatDuration(e.restSecs.toDouble())}",
+                                    if (finished) "Done · ${e.sets.size} sets"
+                                    else "${e.equipment.name.lowercase().replaceFirstChar { it.uppercase() }} · $doneSets of ${e.sets.size} sets · rest ${formatDuration(e.restSecs.toDouble())}",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -205,7 +210,7 @@ private fun LiftingScreen(store: Store, session: Session, onFinish: () -> Unit) 
                             }
                         }
                         // The weight for the sets still to do.
-                        val pending = e.sets.firstOrNull { !it.done } ?: e.sets.lastOrNull()
+                        val pending = e.sets.firstOrNull { !it.done }
                         if (pending != null) {
                             Row(Modifier.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                                 FilledTonalIconButton(onClick = {
@@ -228,7 +233,7 @@ private fun LiftingScreen(store: Store, session: Session, onFinish: () -> Unit) 
                         }
                         // A button per set: its reps. A tap marks it done; hold to change it
                         // (the set's weight shows there). Sized so six fit on a row.
-                        BoxWithConstraints(Modifier.fillMaxWidth()) {
+                        BoxWithConstraints(Modifier.fillMaxWidth().padding(top = if (finished) 12.dp else 0.dp)) {
                             val gap = 8.dp
                             val circle = ((maxWidth - gap * 5) / 6).coerceAtMost(52.dp)
                             FlowRow(horizontalArrangement = Arrangement.spacedBy(gap), verticalArrangement = Arrangement.spacedBy(gap)) {
@@ -239,7 +244,10 @@ private fun LiftingScreen(store: Store, session: Session, onFinish: () -> Unit) 
                                             .size(circle)
                                             .clip(CircleShape)
                                             .then(
-                                                if (set.done) Modifier.background(look.paint())
+                                                if (set.done && finished) Modifier
+                                                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                                                    .border(1.5.dp, look.paint(), CircleShape)
+                                                else if (set.done) Modifier.background(look.paint())
                                                 else Modifier
                                                     .background(MaterialTheme.colorScheme.surfaceContainerHighest)
                                                     .border(if (next) 2.dp else 1.dp, if (next) look.paintB else MaterialTheme.colorScheme.outline, CircleShape)
@@ -261,7 +269,7 @@ private fun LiftingScreen(store: Store, session: Session, onFinish: () -> Unit) 
                                             style = MaterialTheme.typography.titleLarge,
                                             fontWeight = FontWeight.Medium,
                                             textAlign = TextAlign.Center,
-                                            color = if (set.done) Color.Black else MaterialTheme.colorScheme.onSurface,
+                                            color = if (set.done && !finished) Color.Black else MaterialTheme.colorScheme.onSurface,
                                         )
                                     }
                                 }
@@ -481,12 +489,17 @@ private fun GpsScreen(store: Store, session: Session, onFinish: () -> Unit) {
                 Stat(formatElevation(g?.elevationGainM ?: 0.0, s.distanceUnit), "climb", Modifier.weight(1f))
             }
             val place = g?.placeName.orEmpty()
-            if (here == null || place.isNotEmpty()) {
+            val tooFast = paused && session.gps?.autoPaused == true
+            if (here == null || place.isNotEmpty() || tooFast) {
                 Text(
-                    if (here == null) "Waiting for the GPS…" else place,
-                    Modifier.fillMaxWidth().padding(bottom = 10.dp),
+                    when {
+                        tooFast -> "Paused: moving too fast (a car?). Resume to go on."
+                        here == null -> "Waiting for the GPS…"
+                        else -> place
+                    },
+                    Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, bottom = 10.dp),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (tooFast) LocalLook.current.accent else MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                 )
             }

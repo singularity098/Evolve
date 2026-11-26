@@ -87,6 +87,8 @@ pub struct GpsUpdate {
     /// The fix as kept in the trail, or None if it didn't count.
     pub kept: Option<TrackPoint>,
     pub live: GpsLive,
+    /// This fix paused the workout: it's been going too fast for too long.
+    pub paused: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, uniffi::Record)]
@@ -567,8 +569,24 @@ impl Engine {
         let mut g = self.lock();
         let last = g.track.last().cloned();
         let s = g.session_mut()?;
+        let was_paused = s.paused_at_ms.is_some();
         let kept = s.add_point(point, last.as_ref());
+        let paused = !was_paused && s.paused_at_ms.is_some();
         let live = s.gps.clone().unwrap_or_default();
+        if paused {
+            let at = s.paused_at_ms.unwrap_or(i64::MAX);
+            let mut track = std::mem::take(&mut g.track);
+            let trimmed = g.session_mut()?.trim_after(&mut track, at);
+            g.track = track;
+            if trimmed {
+                let mut text = String::new();
+                for p in &g.track {
+                    text += &(serde_json::to_string(p)? + "\n");
+                }
+                write_atomic(&g.session_track_path(), text.as_bytes())?;
+            }
+            g.save_session()?;
+        }
         if let Some(p) = &kept {
             g.track.push(p.clone());
             let line = serde_json::to_string(p)? + "\n";
@@ -579,7 +597,8 @@ impl Engine {
                 g.save_session()?;
             }
         }
-        Ok(GpsUpdate { kept, live })
+        let live = if paused { g.session.as_ref().and_then(|s| s.gps.clone()).unwrap_or(live) } else { live };
+        Ok(GpsUpdate { kept, live, paused })
     }
 
     pub fn set_place_name(&self, name: String) -> Result<Session> {

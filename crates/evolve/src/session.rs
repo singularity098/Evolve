@@ -35,7 +35,39 @@ pub struct GpsLive {
     pub seg: u32,
     /// The altitude elevation gain is measured from (hysteresis).
     pub ele_ref: Option<f64>,
+    /// The last half minute of good fixes, to tell the pace from (kept or not).
+    #[serde(default)]
+    pub recent: Vec<TrackPoint>,
+    /// Since when the pace has been too fast for the workout (a car?).
+    #[serde(default)]
+    pub fast_since_ms: Option<i64>,
+    /// Paused by itself, having gone too fast for too long; until resumed.
+    #[serde(default)]
+    pub auto_paused: bool,
 }
+
+/// The fastest pace, in m/s, a workout of this kind keeps up: anything
+/// faster for long is a car (or a bus, or a train).
+pub fn top_speed_mps(kind: WorkoutKind) -> f64 {
+    match kind {
+        // ~12 mph: a sprint, never a walk.
+        WorkoutKind::Walk | WorkoutKind::Hike => 5.5,
+        // ~20 mph.
+        WorkoutKind::Run => 9.0,
+        // ~45 mph: a long fast descent, at most.
+        _ => 20.0,
+    }
+}
+
+/// How long the pace must stay too fast before the workout pauses.
+pub fn too_fast_for_ms(kind: WorkoutKind) -> i64 {
+    if kind == WorkoutKind::Bike { 30_000 } else { 20_000 }
+}
+
+/// The pace is taken over at least this long, so GPS jitter averages out.
+const PACE_WINDOW_MS: i64 = 10_000;
+/// How long the fixes it's taken from are kept.
+const RECENT_MS: i64 = 30_000;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, uniffi::Record)]
 pub struct TimerSession {
@@ -186,6 +218,9 @@ impl Session {
             self.paused_ms += (now_ms - p).max(0);
             if let Some(g) = self.gps.as_mut() {
                 g.seg += 1;
+                g.recent.clear();
+                g.fast_since_ms = None;
+                g.auto_paused = false;
             }
         }
     }
@@ -295,6 +330,7 @@ impl Session {
         if self.paused_at_ms.is_some() {
             return None;
         }
+        let kind = self.kind;
         let g = self.gps.as_mut()?;
         if !(p.lat.is_finite() && p.lon.is_finite()) || p.accuracy > 40.0 {
             return None;
@@ -306,6 +342,40 @@ impl Session {
         }
         g.last_lat = Some(p.lat);
         g.last_lon = Some(p.lon);
+
+        // The pace over the last ten seconds or more. Too fast for long (the
+        // hike's over and the car's driving home) pauses the workout as of
+        // the fix before the speed went up (see `trim_after`).
+        g.recent.retain(|f| f.t_ms <= p.t_ms && p.t_ms - f.t_ms <= RECENT_MS);
+        if let Some(prev) = g.recent.last() {
+            let dt = (p.t_ms - prev.t_ms) as f64 / 1000.0;
+            if dt > 0.0 && geo::haversine_m(prev.lat, prev.lon, p.lat, p.lon) / dt > 45.0 {
+                return None; // a bad fix: it mustn't set the pace either
+            }
+        }
+        let pace = g.recent.iter().rev().find(|f| p.t_ms - f.t_ms >= PACE_WINDOW_MS).map(|f| {
+            (f.t_ms, geo::haversine_m(f.lat, f.lon, p.lat, p.lon) / ((p.t_ms - f.t_ms) as f64 / 1000.0))
+        });
+        g.recent.push(p.clone());
+        match pace {
+            Some((from, v)) if v > top_speed_mps(kind) => {
+                let since = *g.fast_since_ms.get_or_insert(from);
+                if p.t_ms - since >= too_fast_for_ms(kind) {
+                    // The last fix before the pace went up: the trail is cut back to it.
+                    let at = since;
+                    g.auto_paused = true;
+                    g.recent.clear();
+                    g.fast_since_ms = None;
+                    self.paused_at_ms = Some(at.max(self.started_at_ms));
+                }
+                // Held back until it's known whether it's a glitch or a car.
+                return None;
+            }
+            Some(_) => g.fast_since_ms = None,
+            None if g.fast_since_ms.is_some() => return None,
+            None => {}
+        }
+
         let accept = match last {
             None => true,
             Some(l) if l.seg != p.seg => true,
@@ -343,6 +413,29 @@ impl Session {
         }
         g.points += 1;
         Some(p)
+    }
+
+    /// Takes the trail's points after `t_ms` back off it, and their distance
+    /// and time off the stats: the start of a drive, caught too late.
+    pub fn trim_after(&mut self, track: &mut Vec<TrackPoint>, t_ms: i64) -> bool {
+        let Some(g) = self.gps.as_mut() else { return false };
+        let mut trimmed = false;
+        while track.last().is_some_and(|p| p.t_ms > t_ms) {
+            let p = track.pop().unwrap();
+            trimmed = true;
+            g.points = g.points.saturating_sub(1);
+            if let Some(prev) = track.last().filter(|l| l.seg == p.seg) {
+                let d = geo::haversine_m(prev.lat, prev.lon, p.lat, p.lon);
+                let dt = (p.t_ms - prev.t_ms).max(0) as f64 / 1000.0;
+                g.distance_m = (g.distance_m - d).max(0.0);
+                g.moving_secs = (g.moving_secs - if dt <= 30.0 { dt } else { (d / 1.3).min(dt) }).max(0.0);
+            }
+        }
+        if let Some(l) = track.last() {
+            g.last_lat = Some(l.lat);
+            g.last_lon = Some(l.lon);
+        }
+        trimmed
     }
 
     // ------------------------------------------------------------ breath

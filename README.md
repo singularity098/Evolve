@@ -41,12 +41,16 @@ on a GPS workout's map, which takes the drag for itself):
   and the rest timer starts, with a sound and a buzz when it's over (also
   with the screen off). Hold a set to record fewer reps or change its
   weight; the ± buttons change the weight for the sets still to do. Add
-  exercises or sets as you go. When saving, the routine can take on
+  exercises or sets as you go. An exercise with every set done is marked
+  off (darker, with a tick) until another set is added. When saving, the routine can take on
   today's weights.
 * **Walk, run, hike, bike ride.** GPS tracking on a map, the trail drawn
   behind you so the way back is easy to find, with distance, pace or
-  speed, and climb. Pause and resume (the trail breaks while paused). When
-  it's saved the name defaults to where you started ("Central Park").
+  speed, and climb. Pause and resume (the trail breaks while paused). Going
+  far too fast for the workout for a while (driving home from the trail
+  without ending the hike: over ~12 mph for a walk or hike, ~20 mph for a
+  run, ~45 mph for a ride, for 20–30 s) pauses it by itself, back at the
+  moment the speed went up, so the drive isn't counted. When it's saved the name defaults to where you started ("Central Park").
 * **Stationary bike.** A free-ride stopwatch, a countdown, or an interval
   program: blocks of timed intervals, each block repeated as many times as
   you like. For example: get ready 10 s, warm-up 5 min, then 5 × (all out

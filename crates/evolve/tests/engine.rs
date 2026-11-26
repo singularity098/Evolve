@@ -80,6 +80,63 @@ fn gps_filters_jitter_and_survives_restart() {
 }
 
 #[test]
+fn gps_pauses_itself_when_driven_away() {
+    let (_dir, e) = engine();
+    e.start_gps(WorkoutKind::Hike, 0).unwrap();
+    // North at 1.5 m/s for two minutes, a fix a second.
+    let deg_per_m = 1.0 / 111_195.0;
+    let p = |m: f64, t: i64| TrackPoint { lat: 40.0 + m * deg_per_m, lon: -73.97, alt: None, t_ms: t, accuracy: 5.0, seg: 0 };
+    let mut last_kept = 0;
+    for s in 0..=120 {
+        let u = e.add_point(p(1.5 * s as f64, s * 1000)).unwrap();
+        assert!(!u.paused);
+        if u.kept.is_some() {
+            last_kept = s * 1000;
+        }
+    }
+    // A GPS glitch: five seconds far off pace, then back on the trail.
+    let walked = 1.5 * 120.0;
+    for s in 121..=125 {
+        assert!(!e.add_point(p(walked + 30.0 * (s - 120) as f64, s * 1000)).unwrap().paused);
+    }
+    for s in 126..=150 {
+        let u = e.add_point(p(1.5 * s as f64, s * 1000)).unwrap();
+        assert!(!u.paused);
+        if u.kept.is_some() {
+            last_kept = s * 1000;
+        }
+    }
+    assert!(e.session().unwrap().paused_at_ms.is_none());
+    let before_car = e.session().unwrap().gps.unwrap().distance_m;
+    // Then into the car: 18 m/s (40 mph).
+    let walked = 1.5 * 150.0;
+    let mut paused_at = None;
+    for s in 151..=200 {
+        let u = e.add_point(p(walked + 18.0 * (s - 150) as f64, s * 1000)).unwrap();
+        if u.paused {
+            paused_at = Some(s);
+            assert!(u.live.auto_paused);
+            break;
+        }
+    }
+    let paused_at = paused_at.expect("never paused");
+    assert!(paused_at <= 175, "{paused_at}");
+    let session = e.session().unwrap();
+    let at = session.paused_at_ms.unwrap();
+    assert!(at <= 150_000 && at >= 140_000, "{at}");
+    // The trail stops there: none of the drive is in it.
+    let trail = e.session_track();
+    assert!(trail.last().unwrap().t_ms <= at);
+    assert!(trail.last().unwrap().t_ms >= last_kept - 12_000);
+    let gps = session.gps.unwrap();
+    // Less up to ten seconds of walking, the distance is what it was before the drive.
+    assert!(gps.distance_m <= before_car + 0.1 && gps.distance_m > before_car - 20.0, "{} {before_car}", gps.distance_m);
+    // Resumed, it starts afresh.
+    let resumed = e.resume(300_000).unwrap();
+    assert!(!resumed.gps.unwrap().auto_paused);
+}
+
+#[test]
 fn interval_program() {
     let (_d, e) = engine();
     e.start_timer(WorkoutKind::StationaryBike, TimerMode::Program, Some("hiit".into()), 0, 0).unwrap();

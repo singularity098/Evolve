@@ -183,7 +183,7 @@ class WorkoutService : Service() {
         store.location.value = loc
         val s = store.session.value ?: return
         if (s.pausedAtMs != null) return
-        store.addPoint(
+        val autoPaused = store.addPoint(
             TrackPoint(
                 lat = loc.latitude,
                 lon = loc.longitude,
@@ -193,6 +193,7 @@ class WorkoutService : Service() {
                 seg = 0u,
             )
         )
+        if (autoPaused) tones.go(hard = false)
         if (loc.hasAccuracy() && loc.accuracy < 50) {
             MapCache.ensure(this, loc.latitude, loc.longitude, store.settings.mapCacheMiles, MapStylesToCache)
             if (!placeAsked && s.gps?.placeName.isNullOrEmpty()) {
@@ -278,7 +279,7 @@ class WorkoutService : Service() {
             if (st != null) text += " · round ${st.round}"
         }
         store.gps.value?.let { g -> text += " · " + formatDistance(g.distanceM, store.settings.distanceUnit) }
-        if (paused) text = "Paused · $text"
+        if (paused) text = (if (s.gps?.autoPaused == true) "Paused (too fast) · " else "Paused · ") + text
 
         if (now - lastNotified >= 1000) {
             lastNotified = now

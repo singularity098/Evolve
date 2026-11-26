@@ -78,13 +78,13 @@ val ContrastNames = listOf(
 
 /**
  * The look with its text made to stand out more, whatever the theme:
- * High lifts the text and the dim text towards white; Maximum makes the
- * text white and the dim text nearly so.
+ * High makes the text all but white (a hint of the theme left) and the dim
+ * text a light grey; Maximum makes the text white and the dim text nearly so.
  */
 fun Look.withContrast(c: Contrast): Look = when (c) {
     Contrast.STANDARD -> this
-    Contrast.HIGH -> copy(text = lerp(text, Color.White, 0.55f), textDim = lerp(textDim, Color.White, 0.4f))
-    Contrast.MAXIMUM -> copy(text = Color.White, textDim = lerp(textDim, Color.White, 0.68f))
+    Contrast.HIGH -> copy(text = lerp(text, Color.White, 0.9f), textDim = lerp(textDim, Color.White, 0.72f))
+    Contrast.MAXIMUM -> copy(text = Color.White, textDim = lerp(textDim, Color.White, 0.85f))
 }
 
 private fun backgroundFor(c: Contrast) = if (c == Contrast.MAXIMUM) Color(0xFF000000) else EvolveBackground
@@ -128,8 +128,8 @@ private fun schemeFor(look: Look, contrast: Contrast): ColorScheme {
     // Lines and panel edges: fainter at Standard, plainer with more contrast.
     val (outline, outlineVariant) = when (contrast) {
         Contrast.STANDARD -> Color(0x40FFFFFF) to Color(0x1FFFFFFF)
-        Contrast.HIGH -> Color(0x73FFFFFF) to Color(0x38FFFFFF)
-        Contrast.MAXIMUM -> Color(0xA6FFFFFF) to Color(0x5CFFFFFF)
+        Contrast.HIGH -> Color(0x8CFFFFFF) to Color(0x4DFFFFFF)
+        Contrast.MAXIMUM -> Color(0xB3FFFFFF) to Color(0x66FFFFFF)
     }
     return darkColorScheme(
     primary = look.paintB,
