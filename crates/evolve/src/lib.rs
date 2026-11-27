@@ -87,7 +87,9 @@ pub struct GpsUpdate {
     /// The fix as kept in the trail, or None if it didn't count.
     pub kept: Option<TrackPoint>,
     pub live: GpsLive,
-    /// This fix paused the workout: it's been going too fast for too long.
+    /// This fix paused the workout: it's been going too fast for too long
+    /// (`live.auto_paused`), or it's back at the start and standing still
+    /// (`live.back_at_start`).
     pub paused: bool,
 }
 
@@ -168,6 +170,23 @@ impl Inner {
 
     fn save(&self) -> Result<()> {
         write_atomic(&self.data_path(), &serde_json::to_vec(&self.db)?)
+    }
+
+    /// The session has paused itself as of some time back: the trail loses
+    /// what came after, and both are saved.
+    fn paused_back(&mut self) -> Result<()> {
+        let at = self.session.as_ref().and_then(|s| s.paused_at_ms).unwrap_or(i64::MAX);
+        let mut track = std::mem::take(&mut self.track);
+        let trimmed = self.session_mut()?.trim_after(&mut track, at);
+        self.track = track;
+        if trimmed {
+            let mut text = String::new();
+            for p in &self.track {
+                text += &(serde_json::to_string(p)? + "\n");
+            }
+            write_atomic(&self.session_track_path(), text.as_bytes())?;
+        }
+        self.save_session()
     }
 
     fn save_session(&self) -> Result<()> {
@@ -574,18 +593,7 @@ impl Engine {
         let paused = !was_paused && s.paused_at_ms.is_some();
         let live = s.gps.clone().unwrap_or_default();
         if paused {
-            let at = s.paused_at_ms.unwrap_or(i64::MAX);
-            let mut track = std::mem::take(&mut g.track);
-            let trimmed = g.session_mut()?.trim_after(&mut track, at);
-            g.track = track;
-            if trimmed {
-                let mut text = String::new();
-                for p in &g.track {
-                    text += &(serde_json::to_string(p)? + "\n");
-                }
-                write_atomic(&g.session_track_path(), text.as_bytes())?;
-            }
-            g.save_session()?;
+            g.paused_back()?;
         }
         if let Some(p) = &kept {
             g.track.push(p.clone());
@@ -599,6 +607,19 @@ impl Engine {
         }
         let live = if paused { g.session.as_ref().and_then(|s| s.gps.clone()).unwrap_or(live) } else { live };
         Ok(GpsUpdate { kept, live, paused })
+    }
+
+    /// Checks, without a new fix, whether the activity is back where it
+    /// started and has stood still there a few minutes (indoors the GPS may
+    /// give no fixes at all); if so it pauses itself. True if it paused.
+    pub fn check_back_at_start(&self, now_ms: i64) -> Result<bool> {
+        let mut g = self.lock();
+        let Some(s) = g.session.as_mut() else { return Ok(false) };
+        if !s.check_back_at_start(now_ms) {
+            return Ok(false);
+        }
+        g.paused_back()?;
+        Ok(true)
     }
 
     /// Steps the pedometer counted since its last report; ignored while paused.

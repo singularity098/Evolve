@@ -131,23 +131,48 @@ class Store(private val context: Context) {
         }
     }
 
-    /** Takes a GPS fix; true if it paused the workout (too fast for too long: a car). */
+    /**
+     * Takes a GPS fix; true if it paused the workout: too fast for too long (a car), or back
+     * where it started and standing still for a few minutes (over, but not finished).
+     */
     fun addPoint(p: TrackPoint): Boolean {
         try {
             val u = engine.addPoint(p)
             _gps.value = u.live
             u.kept?.let { _trail.value = _trail.value + it }
-            if (u.paused) {
-                // Paused back where the speed went up: the trail may have lost its last few points.
-                _session.value = engine.session()
-                _trail.value = engine.sessionTrack()
-                say("Paused: moving too fast for this activity (a car?). Resume to go on.")
-            }
+            if (u.paused) pausedBack()
             return u.paused
         } catch (t: Throwable) {
             Log.e("evolve", "addPoint failed", t)
             return false
         }
+    }
+
+    /**
+     * Back where it started and still for a few minutes, with no fix needed (indoors the GPS
+     * may give none): true if that paused the workout.
+     */
+    fun checkBackAtStart(now: Long): Boolean {
+        try {
+            if (!engine.checkBackAtStart(now)) return false
+            pausedBack()
+            return true
+        } catch (t: Throwable) {
+            Log.e("evolve", "checkBackAtStart failed", t)
+            return false
+        }
+    }
+
+    /** Paused by itself as of some time back: the trail may have lost its last few points. */
+    private fun pausedBack() {
+        val s = engine.session()
+        _session.value = s
+        _gps.value = s?.gps
+        _trail.value = engine.sessionTrack()
+        say(
+            if (s?.gps?.backAtStart == true) "Paused: back where you started. Finish the activity, or resume to go on."
+            else "Paused: moving too fast for this activity (a car?). Resume to go on."
+        )
     }
 
     /** Steps the pedometer counted since it last reported (not counted while paused). */

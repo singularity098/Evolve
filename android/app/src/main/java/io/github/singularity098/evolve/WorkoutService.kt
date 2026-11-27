@@ -70,6 +70,11 @@ class WorkoutService : Service() {
     companion object {
         private const val CHANNEL = "workout"
         private const val ID = 1
+        /** The alert when it pauses itself back where it started: it rings, unlike the other. */
+        private const val ALERT_CHANNEL = "auto_pause"
+        private const val ALERT_ID = 2
+        /** The alert's Resume button. */
+        private const val ACTION_RESUME = "io.github.singularity098.evolve.RESUME"
         /** A set circle tapped in the notification: extras [EXTRA_EXERCISE] and [EXTRA_SET]. */
         private const val ACTION_SET = "io.github.singularity098.evolve.SET"
         private const val EXTRA_EXERCISE = "exercise"
@@ -109,6 +114,8 @@ class WorkoutService : Service() {
     private var timerDone = false
     private var meditationDone = false
     private var lastNotified = 0L
+    private var lastStillCheck = 0L
+    private var alertShown = false
 
     // Every method spelled out: before Android 11 the others had no default.
     private val listener = object : LocationListener {
@@ -145,10 +152,21 @@ class WorkoutService : Service() {
                 setShowBadge(false)
             }
         )
+        nm.createNotificationChannel(
+            NotificationChannel(ALERT_CHANNEL, "Activity paused by itself", NotificationManager.IMPORTANCE_HIGH).apply {
+                description = "Back where the activity started and standing still: probably over, but not finished"
+                setShowBadge(false)
+            }
+        )
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_SET) tapSet(intent.getIntExtra(EXTRA_EXERCISE, -1), intent.getIntExtra(EXTRA_SET, -1))
+        if (intent?.action == ACTION_RESUME) {
+            val now = System.currentTimeMillis()
+            store.live { resume(now) }
+            lastNotified = 0
+        }
         val session = store.session.value
         if (session == null) {
             stopSelf()
@@ -194,6 +212,7 @@ class WorkoutService : Service() {
 
     override fun onDestroy() {
         handler.removeCallbacks(tick)
+        clearAlert()
         stopGps()
         stopSteps()
         MapCache.forget()
@@ -264,7 +283,7 @@ class WorkoutService : Service() {
                 seg = 0u,
             )
         )
-        if (autoPaused) tones.go(hard = false)
+        if (autoPaused) onAutoPaused()
         if (loc.hasAccuracy() && loc.accuracy < 50) {
             MapCache.ensure(this, loc.latitude, loc.longitude, store.settings.mapCacheMiles, MapStylesToCache)
             if (!placeAsked && s.gps?.placeName.isNullOrEmpty()) {
@@ -277,6 +296,53 @@ class WorkoutService : Service() {
                 }.start()
             }
         }
+    }
+
+    /** Paused by itself: a cue for too fast; a ringing notification for back at the start. */
+    private fun onAutoPaused() {
+        if (store.session.value?.gps?.backAtStart == true) showAlert() else tones.go(hard = false)
+        lastNotified = 0
+    }
+
+    /**
+     * Back where it started and still for a few minutes: most likely the activity's over and
+     * wasn't finished. A notification that rings (the channel's sound), to finish or resume.
+     */
+    private fun showAlert() {
+        val open = PendingIntent.getActivity(
+            this, 1,
+            Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        val resume = PendingIntent.getService(
+            this, 2,
+            Intent(this, WorkoutService::class.java).setAction(ACTION_RESUME),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        val kind = store.session.value?.let { kindLabel(it.kind) } ?: "Activity"
+        val n = NotificationCompat.Builder(this, ALERT_CHANNEL)
+            .setSmallIcon(R.drawable.ic_stat_evolve)
+            .setContentTitle("$kind paused")
+            .setContentText("You're back where you started. Finish it in the app, or resume to go on.")
+            .setStyle(NotificationCompat.BigTextStyle().bigText("You're back where you started and have stood still a few minutes, so it's paused. Finish it in the app, or resume to go on."))
+            .setContentIntent(open)
+            .addAction(0, "Resume", resume)
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .build()
+        try {
+            getSystemService(NotificationManager::class.java).notify(ALERT_ID, n)
+            alertShown = true
+        } catch (e: Exception) {
+            Log.w("evolve", "the paused alert could not be shown", e)
+        }
+    }
+
+    private fun clearAlert() {
+        if (!alertShown) return
+        alertShown = false
+        getSystemService(NotificationManager::class.java).cancel(ALERT_ID)
     }
 
     // ---------------------------------------------------------------- cues
@@ -349,11 +415,25 @@ class WorkoutService : Service() {
             }
             if (st != null) text += " · round ${st.round}"
         }
+        // Back at the start and still, checked without a fix too: indoors the GPS may give none.
+        if (!paused && s.gps != null && now - lastStillCheck >= 5000) {
+            lastStillCheck = now
+            if (store.checkBackAtStart(now)) {
+                onAutoPaused()
+                return
+            }
+        }
+        // Resumed (or paused by hand after): the alert has done its job.
+        if (alertShown && s.gps?.backAtStart != true) clearAlert()
         store.gps.value?.let { g ->
             text += " · " + formatDistance(g.distanceM, store.settings.distanceUnit)
             if (g.steps > 0u) text += " · ${formatNumber(g.steps.toDouble(), 0u)} steps"
         }
-        if (paused) text = (if (s.gps?.autoPaused == true) "Paused (too fast) · " else "Paused · ") + text
+        if (paused) text = when {
+            s.gps?.autoPaused == true -> "Paused (too fast) · "
+            s.gps?.backAtStart == true -> "Paused (back at the start) · "
+            else -> "Paused · "
+        } + text
 
         if (now - lastNotified >= 1000) {
             lastNotified = now

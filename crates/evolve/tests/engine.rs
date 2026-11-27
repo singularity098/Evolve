@@ -137,6 +137,90 @@ fn gps_pauses_itself_when_driven_away() {
 }
 
 #[test]
+fn gps_pauses_itself_back_at_the_start() {
+    let (_dir, e) = engine();
+    e.start_gps(WorkoutKind::Walk, 0).unwrap();
+    let deg_per_m = 1.0 / 111_195.0;
+    // A metre or two of GPS wander, back and forth.
+    let p = |m: f64, t: i64| {
+        let wobble = if (t / 1000) % 2 == 0 { 2.0 } else { -2.0 };
+        TrackPoint { lat: 40.0 + (m + wobble) * deg_per_m, lon: -73.97, alt: None, t_ms: t, accuracy: 8.0, seg: 0 }
+    };
+    // Standing at the start for five minutes before setting off doesn't pause it.
+    let mut t = 0;
+    while t <= 300_000 {
+        assert!(!e.add_point(p(0.0, t)).unwrap().paused);
+        t += 1000;
+    }
+    // 300 m out at 1.5 m/s and back.
+    for s in 0..=200 {
+        assert!(!e.add_point(p(1.5 * s as f64, t)).unwrap().paused);
+        t += 1000;
+    }
+    for s in 0..=200 {
+        assert!(!e.add_point(p(300.0 - 1.5 * s as f64, t)).unwrap().paused);
+        t += 1000;
+    }
+    let stopped = t;
+    let mut paused = None;
+    while t <= stopped + 300_000 {
+        let u = e.add_point(p(5.0, t)).unwrap();
+        if u.paused {
+            assert!(u.live.back_at_start);
+            assert!(!u.live.auto_paused);
+            paused = Some(t);
+            break;
+        }
+        t += 1000;
+    }
+    let paused = paused.expect("never paused");
+    assert!(paused - stopped >= 165_000 && paused - stopped <= 190_000, "{}", paused - stopped);
+    // Paused as of when it stopped: the standing isn't counted.
+    let at = e.session().unwrap().paused_at_ms.unwrap();
+    assert!(at <= stopped + 2000, "{at} {stopped}");
+    // Resumed there, it doesn't pause again until it's gone away and come back.
+    let resumed = e.resume(t).unwrap();
+    assert!(!resumed.gps.unwrap().back_at_start);
+    let again = t;
+    while t <= again + 300_000 {
+        assert!(!e.add_point(p(5.0, t)).unwrap().paused);
+        t += 1000;
+    }
+}
+
+#[test]
+fn gps_pauses_itself_back_at_the_start_without_fixes() {
+    let (_dir, e) = engine();
+    e.start_gps(WorkoutKind::Hike, 0).unwrap();
+    let deg_per_m = 1.0 / 111_195.0;
+    let p = |m: f64, t: i64| TrackPoint { lat: 40.0 + m * deg_per_m, lon: -73.97, alt: None, t_ms: t, accuracy: 8.0, seg: 0 };
+    let mut t = 0;
+    for s in 0..=200 {
+        e.add_point(p(1.5 * s as f64, t)).unwrap();
+        t += 1000;
+    }
+    for s in 0..=200 {
+        e.add_point(p(300.0 - 1.5 * s as f64, t)).unwrap();
+        t += 1000;
+    }
+    // Indoors: no more fixes.
+    assert!(!e.check_back_at_start(t + 60_000).unwrap());
+    assert!(e.check_back_at_start(t + 200_000).unwrap());
+    let s = e.session().unwrap();
+    assert!(s.gps.unwrap().back_at_start);
+    assert!(s.paused_at_ms.unwrap() <= t);
+    // Away from the start, standing still doesn't pause it.
+    let (_dir, e) = engine();
+    e.start_gps(WorkoutKind::Hike, 0).unwrap();
+    let mut t = 0;
+    for s in 0..=200 {
+        e.add_point(p(1.5 * s as f64, t)).unwrap();
+        t += 1000;
+    }
+    assert!(!e.check_back_at_start(t + 600_000).unwrap());
+}
+
+#[test]
 fn interval_program() {
     let (_d, e) = engine();
     e.start_timer(WorkoutKind::StationaryBike, TimerMode::Program, Some("hiit".into()), 0, 0).unwrap();

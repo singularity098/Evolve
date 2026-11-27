@@ -55,7 +55,11 @@ on a GPS activity's map, which takes the drag for itself):
   far too fast for the activity for a while (driving home from the trail
   without ending the hike: over ~12 mph for a walk or hike, ~20 mph for a
   run, ~45 mph for a ride, for 20–30 s) pauses it by itself, back at the
-  moment the speed went up, so the drive isn't counted. When it's saved the name defaults to where you started ("Central Park").
+  moment the speed went up, so the drive isn't counted. Coming back to
+  where you started (within ~60 m, having gone at least 200 m away) and
+  standing still there for three minutes pauses it too, as of when you
+  stopped, with a notification that rings (and a Resume button): the
+  activity's most likely over and you forgot to finish it. When it's saved the name defaults to where you started ("Central Park").
   Walks, runs and hikes also count steps with the phone's pedometer (if it has
   one, and with the physical activity permission): shown live, in the
   notification and the history (with steps a minute), and graphed.

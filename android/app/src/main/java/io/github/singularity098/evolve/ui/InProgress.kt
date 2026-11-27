@@ -602,16 +602,18 @@ private fun GpsScreen(store: Store, session: Session, onFinish: () -> Unit) {
             }
             val place = g?.placeName.orEmpty()
             val tooFast = paused && session.gps?.autoPaused == true
-            if (here == null || place.isNotEmpty() || tooFast) {
+            val backAtStart = paused && session.gps?.backAtStart == true
+            if (here == null || place.isNotEmpty() || tooFast || backAtStart) {
                 Text(
                     when {
                         tooFast -> "Paused: moving too fast (a car?). Resume to go on."
+                        backAtStart -> "Paused: back where you started. Finish, or resume to go on."
                         here == null -> "Waiting for the GPS…"
                         else -> place
                     },
                     Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, bottom = 10.dp),
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (tooFast) LocalLook.current.accent else MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (tooFast || backAtStart) LocalLook.current.accent else MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                 )
             }

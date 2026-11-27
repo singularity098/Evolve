@@ -47,6 +47,20 @@ pub struct GpsLive {
     /// Steps counted by the pedometer while not paused.
     #[serde(default)]
     pub steps: u32,
+    /// The farthest the activity has been from where it started, in metres.
+    #[serde(default)]
+    pub farthest_m: f64,
+    /// Where the phone has stayed (within `STILL_RADIUS_M`) since `still_since_ms`.
+    #[serde(default)]
+    pub still_lat: Option<f64>,
+    #[serde(default)]
+    pub still_lon: Option<f64>,
+    #[serde(default)]
+    pub still_since_ms: Option<i64>,
+    /// Paused by itself, having come back to where it started and stood
+    /// there a few minutes (the activity's over, but wasn't finished); until resumed.
+    #[serde(default)]
+    pub back_at_start: bool,
 }
 
 /// The fastest pace, in m/s, a workout of this kind keeps up: anything
@@ -74,6 +88,15 @@ fn max_jump_mps(kind: WorkoutKind) -> f64 {
 pub fn too_fast_for_ms(kind: WorkoutKind) -> i64 {
     if kind == WorkoutKind::Bike { 30_000 } else { 20_000 }
 }
+
+/// Standing within this of one spot counts as standing still (GPS wanders).
+const STILL_RADIUS_M: f64 = 20.0;
+/// Standing still within this of the start is being back where it started.
+const START_RADIUS_M: f64 = 60.0;
+/// It must first have gone at least this far from the start.
+const AWAY_M: f64 = 200.0;
+/// How long standing still back at the start pauses the activity.
+pub const STILL_FOR_MS: i64 = 3 * 60_000;
 
 /// The pace is taken over at least this long, so GPS jitter averages out.
 const PACE_WINDOW_MS: i64 = 10_000;
@@ -232,8 +255,42 @@ impl Session {
                 g.recent.clear();
                 g.fast_since_ms = None;
                 g.auto_paused = false;
+                g.still_since_ms = None;
+                if g.back_at_start {
+                    // Going on from the start: it must go away and come back again to pause again.
+                    g.back_at_start = false;
+                    g.farthest_m = 0.0;
+                }
             }
         }
+    }
+
+    /// Back where it started, standing still for a few minutes: the activity's
+    /// over but wasn't finished, so it pauses itself as of when it stopped
+    /// there. Called with each fix and now and then without one (indoors,
+    /// the GPS may give none). True if it paused.
+    pub fn check_back_at_start(&mut self, now_ms: i64) -> bool {
+        if self.paused_at_ms.is_some() {
+            return false;
+        }
+        let Some(g) = self.gps.as_mut() else { return false };
+        let (Some(slat), Some(slon), Some(lat), Some(lon), Some(since)) =
+            (g.start_lat, g.start_lon, g.still_lat, g.still_lon, g.still_since_ms)
+        else {
+            return false;
+        };
+        if g.farthest_m < AWAY_M
+            || geo::haversine_m(slat, slon, lat, lon) > START_RADIUS_M
+            || now_ms - since < STILL_FOR_MS
+        {
+            return false;
+        }
+        g.back_at_start = true;
+        g.recent.clear();
+        g.fast_since_ms = None;
+        g.still_since_ms = None;
+        self.paused_at_ms = Some(since.max(self.started_at_ms));
+        true
     }
 
     // ------------------------------------------------------------ lifting
@@ -368,6 +425,25 @@ impl Session {
             (f.t_ms, geo::haversine_m(f.lat, f.lon, p.lat, p.lon) / ((p.t_ms - f.t_ms) as f64 / 1000.0))
         });
         g.recent.push(p.clone());
+
+        // How far it has gone, and whether it's standing still (and since when).
+        if let (Some(slat), Some(slon)) = (g.start_lat, g.start_lon) {
+            g.farthest_m = g.farthest_m.max(geo::haversine_m(slat, slon, p.lat, p.lon));
+        }
+        let still = match (g.still_lat, g.still_lon, g.still_since_ms) {
+            (Some(lat), Some(lon), Some(_)) => geo::haversine_m(lat, lon, p.lat, p.lon) <= STILL_RADIUS_M,
+            _ => false,
+        };
+        if !still {
+            g.still_lat = Some(p.lat);
+            g.still_lon = Some(p.lon);
+            g.still_since_ms = Some(p.t_ms);
+        }
+        if self.check_back_at_start(p.t_ms) {
+            return None;
+        }
+        let g = self.gps.as_mut()?;
+
         match pace {
             Some((from, v)) if v > top_speed_mps(kind) => {
                 let since = *g.fast_since_ms.get_or_insert(from);
