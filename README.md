@@ -37,7 +37,7 @@ on a GPS workout's map, which takes the drag for itself):
 * **Weights.** Routines are designed in detail in Settings: any number of
   barbell, dumbbell, kettlebell, machine, cable or bodyweight exercises,
   each with its own sets (reps and weight per set) and rest. During the
-  workout each set is a round button showing its reps: tap it when done
+  workout each set is a round button showing its reps (a dashed ring until it's done, then a solid painted one): tap it when done
   and the rest timer starts, with a sound and a buzz when it's over (also
   with the screen off). Hold a set to record fewer reps or change its
   weight; the ± buttons change the weight for the sets still to do. Add

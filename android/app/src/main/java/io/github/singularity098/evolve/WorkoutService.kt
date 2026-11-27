@@ -363,7 +363,6 @@ class WorkoutService : Service() {
             )
             v.setInt(frame[1], "setColorFilter", (if (set.done || si == next) paint.paintB else paint.textDim).toArgb())
             v.setTextViewText(frame[2], "${if (set.done) set.reps else set.targetReps}")
-            if (set.done) v.setTextColor(frame[2], android.graphics.Color.BLACK)
             v.setOnClickPendingIntent(
                 frame[0],
                 PendingIntent.getService(
