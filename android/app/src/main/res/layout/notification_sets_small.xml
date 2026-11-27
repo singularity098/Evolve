@@ -24,7 +24,7 @@
                 android:src="@drawable/notif_set_ring" />
             <TextView
                 android:id="@+id/set0_reps"
-                style="@style/TextAppearance.Compat.Notification.Title"
+                style="@style/TextAppearance.Compat.Notification"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:gravity="center"
@@ -44,7 +44,7 @@
                 android:src="@drawable/notif_set_ring" />
             <TextView
                 android:id="@+id/set1_reps"
-                style="@style/TextAppearance.Compat.Notification.Title"
+                style="@style/TextAppearance.Compat.Notification"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:gravity="center"
@@ -64,7 +64,7 @@
                 android:src="@drawable/notif_set_ring" />
             <TextView
                 android:id="@+id/set2_reps"
-                style="@style/TextAppearance.Compat.Notification.Title"
+                style="@style/TextAppearance.Compat.Notification"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:gravity="center"
@@ -84,7 +84,7 @@
                 android:src="@drawable/notif_set_ring" />
             <TextView
                 android:id="@+id/set3_reps"
-                style="@style/TextAppearance.Compat.Notification.Title"
+                style="@style/TextAppearance.Compat.Notification"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:gravity="center"
@@ -104,7 +104,7 @@
                 android:src="@drawable/notif_set_ring" />
             <TextView
                 android:id="@+id/set4_reps"
-                style="@style/TextAppearance.Compat.Notification.Title"
+                style="@style/TextAppearance.Compat.Notification"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:gravity="center"
@@ -124,7 +124,7 @@
                 android:src="@drawable/notif_set_ring" />
             <TextView
                 android:id="@+id/set5_reps"
-                style="@style/TextAppearance.Compat.Notification.Title"
+                style="@style/TextAppearance.Compat.Notification"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:gravity="center"
@@ -144,7 +144,7 @@
                 android:src="@drawable/notif_set_ring" />
             <TextView
                 android:id="@+id/set6_reps"
-                style="@style/TextAppearance.Compat.Notification.Title"
+                style="@style/TextAppearance.Compat.Notification"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:gravity="center"

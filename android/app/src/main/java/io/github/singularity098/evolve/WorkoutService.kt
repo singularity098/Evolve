@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
+import io.github.singularity098.evolve.ui.EvolveBackground
 import io.github.singularity098.evolve.ui.MapStylesToCache
 import io.github.singularity098.evolve.ui.lookNamed
 import io.github.singularity098.evolve.core.BreathPhase
@@ -46,6 +47,9 @@ import io.github.singularity098.evolve.core.kindUsesGps
  * interval, a meditation's end and a breath round's recovery.
  */
 /** Each set slot's views in the notification layouts: the frame, its circle, its reps. */
+/** The grey of a set still to do in the notification, its dots and number. */
+private const val SET_GREY = 0xFF9AA0A6.toInt()
+
 private val SET_IDS = arrayOf(
     intArrayOf(R.id.set0, R.id.set0_circle, R.id.set0_reps),
     intArrayOf(R.id.set1, R.id.set1_circle, R.id.set1_reps),
@@ -361,8 +365,10 @@ class WorkoutService : Service() {
                     else -> R.drawable.notif_set_ring
                 },
             )
-            v.setInt(frame[1], "setColorFilter", (if (set.done || si == next) paint.paintB else paint.textDim).toArgb())
+            // Grey until done: one that reads on light and dark notification shades alike.
+            v.setInt(frame[1], "setColorFilter", if (set.done) paint.paintB.toArgb() else SET_GREY)
             v.setTextViewText(frame[2], "${if (set.done) set.reps else set.targetReps}")
+            v.setTextColor(frame[2], if (set.done) EvolveBackground.toArgb() else SET_GREY)
             v.setOnClickPendingIntent(
                 frame[0],
                 PendingIntent.getService(

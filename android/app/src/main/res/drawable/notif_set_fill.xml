@@ -1,7 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- A done set in the notification: a solid ring with a faint wash inside (tinted with the
-     theme's colour in code; the tint keeps each part's transparency). -->
+<!-- A done set in the notification: a filled disc (tinted with the theme's colour in code). -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
-    <solid android:color="#1FFFFFFF" />
-    <stroke android:width="3dp" android:color="#FFFFFFFF" />
+    <solid android:color="#FFFFFFFF" />
 </shape>

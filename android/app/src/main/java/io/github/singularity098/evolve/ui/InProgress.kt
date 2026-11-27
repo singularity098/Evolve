@@ -76,6 +76,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.singularity098.evolve.Store
 import io.github.singularity098.evolve.core.BreathPhase
+import io.github.singularity098.evolve.core.Contrast
 import io.github.singularity098.evolve.core.FlatStep
 import io.github.singularity098.evolve.core.Session
 import io.github.singularity098.evolve.core.TimerMode
@@ -283,12 +284,12 @@ private fun LiftingScreen(store: Store, session: Session, onFinish: () -> Unit) 
                             FlowRow(horizontalArrangement = Arrangement.spacedBy(gap), verticalArrangement = Arrangement.spacedBy(gap)) {
                                 e.sets.forEachIndexed { si, set ->
                                     val next = !set.done && e.sets.take(si).all { it.done }
-                                    val outline = MaterialTheme.colorScheme.outline
+                                    val grey = setGrey(next)
                                     Box(
                                         Modifier
                                             .size(circle)
                                             .clip(CircleShape)
-                                            .drawBehind { setRing(set.done, next, look, outline) }
+                                            .drawBehind { setRing(set.done, next, look, grey) }
                                             .combinedClickable(
                                                 onClick = {
                                                     val t = System.currentTimeMillis()
@@ -304,9 +305,9 @@ private fun LiftingScreen(store: Store, session: Session, onFinish: () -> Unit) 
                                         Text(
                                             "${if (set.done) set.reps else set.targetReps}",
                                             style = MaterialTheme.typography.titleLarge,
-                                            fontWeight = FontWeight.Medium,
+                                            fontWeight = FontWeight.Normal,
                                             textAlign = TextAlign.Center,
-                                            color = if (set.done) look.paintA else MaterialTheme.colorScheme.onSurface,
+                                            color = if (set.done) EvolveBackground else grey,
                                         )
                                     }
                                 }
@@ -376,34 +377,40 @@ private fun LiftingScreen(store: Store, session: Session, onFinish: () -> Unit) 
 }
 
 /**
- * A set's button, "dashed to solid": a dashed ring while it's to do, closing into a solid
- * painted ring with a faint wash once it's done. The next set's dashes carry the full paint,
- * with a fainter wash behind its number. Sizes are in dp on a 48 dp button, scaled with it.
+ * The grey of a set still to do, its dots and its number alike: lighter for the next set.
+ * No theme colour until it's done. Brighter at higher contrast.
  */
-private fun DrawScope.setRing(done: Boolean, next: Boolean, look: Look, outline: Color) {
+@Composable
+private fun setGrey(next: Boolean): Color {
+    val a = when (LocalContrast.current) {
+        Contrast.STANDARD -> if (next) 0.62f else 0.36f
+        Contrast.HIGH -> if (next) 0.8f else 0.55f
+        Contrast.MAXIMUM -> if (next) 0.92f else 0.7f
+    }
+    return Color.White.copy(alpha = a)
+}
+
+/**
+ * A set's button: a thin ring of grey dots while it's to do (a little heavier on the next
+ * set), and a disc filled with the theme's paint once it's done. Sizes are in dp on a
+ * 48 dp button, scaled with it.
+ */
+private fun DrawScope.setRing(done: Boolean, next: Boolean, look: Look, grey: Color) {
     val r = size.minDimension / 2
     val u = r / 24f
     if (done) {
-        val w = 3f * u
-        val c = r - w / 2
-        drawCircle(look.paintB.copy(alpha = 0.12f), radius = c - w / 2)
-        drawCircle(look.paint(), radius = c, style = Stroke(w))
+        drawCircle(look.paint(), radius = r)
     } else {
-        val w = (if (next) 3f else 2f) * u
-        val c = r - w / 2
-        // Dashes that close up evenly round the ring.
-        val dash = (if (next) 6f else 4f) * u
-        val gap = 4f * u
-        val n = (2 * Math.PI.toFloat() * c / (dash + gap)).toInt().coerceAtLeast(1)
-        val scale = (2 * Math.PI.toFloat() * c / n) / (dash + gap)
-        val stroke = Stroke(w, pathEffect = PathEffect.dashPathEffect(floatArrayOf(dash * scale, gap * scale)))
-        if (next) {
-            drawCircle(look.paintB.copy(alpha = 0.08f), radius = c - w / 2)
-            drawCircle(look.paint(), radius = c, style = stroke)
-        } else {
-            // A little brighter than the outline at Standard contrast, so the dashes hold up.
-            drawCircle(outline.copy(alpha = maxOf(outline.alpha, 0.4f)), radius = c, style = stroke)
-        }
+        val w = (if (next) 1.6f else 1.2f) * u
+        val c = r - w
+        // Round dots that close up evenly round the ring.
+        val n = (2 * Math.PI.toFloat() * c / (5f * u)).toInt().coerceAtLeast(6)
+        val step = 2 * Math.PI.toFloat() * c / n
+        drawCircle(
+            grey,
+            radius = c,
+            style = Stroke(w, cap = StrokeCap.Round, pathEffect = PathEffect.dashPathEffect(floatArrayOf(0.01f, step - 0.01f))),
+        )
     }
 }
 
