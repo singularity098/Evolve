@@ -2,6 +2,6 @@
 <!-- A done set in the notification: a solid ring with a faint wash inside (tinted with the
      theme's colour in code; the tint keeps each part's transparency). -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
-    <solid android:color="#24FFFFFF" />
+    <solid android:color="#1FFFFFFF" />
     <stroke android:width="3dp" android:color="#FFFFFFFF" />
 </shape>

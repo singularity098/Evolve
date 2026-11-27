@@ -374,29 +374,34 @@ private fun LiftingScreen(store: Store, session: Session, onFinish: () -> Unit) 
 }
 
 /**
- * A set's button, "dashed to solid": a dashed ring while it's to do (heavier, in the paint's
- * colour, for the next one), closing into a solid painted ring with a faint wash once it's done.
+ * A set's button, "dashed to solid": a dashed ring while it's to do, closing into a solid
+ * painted ring with a faint wash once it's done. The next set's dashes carry the full paint,
+ * with a fainter wash behind its number. Sizes are in dp on a 48 dp button, scaled with it.
  */
 private fun DrawScope.setRing(done: Boolean, next: Boolean, look: Look, outline: Color) {
     val r = size.minDimension / 2
+    val u = r / 24f
     if (done) {
-        val w = r * 3.5f / 26f
-        drawCircle(look.paintB.copy(alpha = 0.14f), radius = r * 0.6f)
-        drawCircle(look.paint(), radius = r - w / 2, style = Stroke(w))
+        val w = 3f * u
+        val c = r - w / 2
+        drawCircle(look.paintB.copy(alpha = 0.12f), radius = c - w / 2)
+        drawCircle(look.paint(), radius = c, style = Stroke(w))
     } else {
-        val w = (if (next) 2.5f else 1.5f) * r / 26f
+        val w = (if (next) 3f else 2f) * u
         val c = r - w / 2
         // Dashes that close up evenly round the ring.
-        val dash = (if (next) 5f else 3f) * r / 26f
-        val gap = 4f * r / 26f
+        val dash = (if (next) 6f else 4f) * u
+        val gap = 4f * u
         val n = (2 * Math.PI.toFloat() * c / (dash + gap)).toInt().coerceAtLeast(1)
-        val period = 2 * Math.PI.toFloat() * c / n
-        val scale = period / (dash + gap)
-        drawCircle(
-            if (next) look.paintB else outline,
-            radius = c,
-            style = Stroke(w, pathEffect = PathEffect.dashPathEffect(floatArrayOf(dash * scale, gap * scale))),
-        )
+        val scale = (2 * Math.PI.toFloat() * c / n) / (dash + gap)
+        val stroke = Stroke(w, pathEffect = PathEffect.dashPathEffect(floatArrayOf(dash * scale, gap * scale)))
+        if (next) {
+            drawCircle(look.paintB.copy(alpha = 0.08f), radius = c - w / 2)
+            drawCircle(look.paint(), radius = c, style = stroke)
+        } else {
+            // A little brighter than the outline at Standard contrast, so the dashes hold up.
+            drawCircle(outline.copy(alpha = maxOf(outline.alpha, 0.4f)), radius = c, style = stroke)
+        }
     }
 }
 
