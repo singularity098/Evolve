@@ -11,6 +11,10 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
@@ -37,6 +41,8 @@ import io.github.singularity098.evolve.core.TrackPoint
 import io.github.singularity098.evolve.core.formatDistance
 import io.github.singularity098.evolve.core.formatDuration
 import io.github.singularity098.evolve.core.formatWeight
+import io.github.singularity098.evolve.core.formatNumber
+import io.github.singularity098.evolve.core.kindCountsSteps
 import io.github.singularity098.evolve.core.kindLabel
 import io.github.singularity098.evolve.core.kindUsesGps
 
@@ -47,7 +53,7 @@ import io.github.singularity098.evolve.core.kindUsesGps
  * interval, a meditation's end and a breath round's recovery.
  */
 /** Each set slot's views in the notification layouts: the frame, its circle, its reps. */
-/** The grey of a set still to do in the notification, its dots and number. */
+/** The grey of a set still to do in the notification, its ring and number. */
 private const val SET_GREY = 0xFF9AA0A6.toInt()
 
 private val SET_IDS = arrayOf(
@@ -91,6 +97,9 @@ class WorkoutService : Service() {
     private var wakeLock: PowerManager.WakeLock? = null
     private var locationManager: LocationManager? = null
     private var gpsOn = false
+    private var stepsOn = false
+    /** The step counter's last reading (steps since the phone started); null until the first. */
+    private var lastStepReading: Float? = null
     private var placeAsked = false
 
     // What has been sounded already, so each cue plays once.
@@ -109,6 +118,20 @@ class WorkoutService : Service() {
         override fun onStatusChanged(provider: String?, status: Int, extras: android.os.Bundle?) {}
         override fun onProviderEnabled(provider: String) {}
         override fun onProviderDisabled(provider: String) {}
+    }
+
+    // The pedometer: the step counter reports a running total since the phone started,
+    // so each reading's rise over the last is new steps.
+    private val stepListener = object : SensorEventListener {
+        override fun onSensorChanged(event: SensorEvent) {
+            val total = event.values.firstOrNull() ?: return
+            val last = lastStepReading
+            lastStepReading = total
+            // The first reading only sets where counting starts from; a reboot resets the total.
+            if (last != null && total > last) store.addSteps((total - last).toInt())
+        }
+
+        override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -161,6 +184,7 @@ class WorkoutService : Service() {
                 .apply { acquire(6 * 3600 * 1000L) }
         }
         if (withGps) startGps()
+        if (kindCountsSteps(session.kind)) startSteps()
         // A rest that ended while nothing was running isn't announced late.
         session.lifting?.restUntilMs?.let { if (it <= System.currentTimeMillis()) restNotified = it }
         handler.removeCallbacks(tick)
@@ -171,6 +195,7 @@ class WorkoutService : Service() {
     override fun onDestroy() {
         handler.removeCallbacks(tick)
         stopGps()
+        stopSteps()
         MapCache.forget()
         wakeLock?.let { if (it.isHeld) it.release() }
         wakeLock = null
@@ -204,6 +229,25 @@ class WorkoutService : Service() {
     private fun stopGps() {
         if (gpsOn) locationManager?.removeUpdates(listener)
         gpsOn = false
+    }
+
+    // ---------------------------------------------------------- steps
+
+    private fun startSteps() {
+        if (stepsOn) return
+        if (Build.VERSION.SDK_INT >= 29 &&
+            checkSelfPermission(Manifest.permission.ACTIVITY_RECOGNITION) != PackageManager.PERMISSION_GRANTED
+        ) return
+        val sm = getSystemService(SENSOR_SERVICE) as SensorManager
+        val counter = sm.getDefaultSensor(Sensor.TYPE_STEP_COUNTER) ?: return
+        lastStepReading = null
+        // Batched up to ten seconds: the count needn't wake the phone each step.
+        stepsOn = sm.registerListener(stepListener, counter, SensorManager.SENSOR_DELAY_NORMAL, 10_000_000)
+    }
+
+    private fun stopSteps() {
+        if (stepsOn) (getSystemService(SENSOR_SERVICE) as SensorManager).unregisterListener(stepListener)
+        stepsOn = false
     }
 
     private fun onLocation(loc: Location) {
@@ -305,7 +349,10 @@ class WorkoutService : Service() {
             }
             if (st != null) text += " · round ${st.round}"
         }
-        store.gps.value?.let { g -> text += " · " + formatDistance(g.distanceM, store.settings.distanceUnit) }
+        store.gps.value?.let { g ->
+            text += " · " + formatDistance(g.distanceM, store.settings.distanceUnit)
+            if (g.steps > 0u) text += " · ${formatNumber(g.steps.toDouble(), 0u)} steps"
+        }
         if (paused) text = (if (s.gps?.autoPaused == true) "Paused (too fast) · " else "Paused · ") + text
 
         if (now - lastNotified >= 1000) {

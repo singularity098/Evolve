@@ -62,8 +62,11 @@ enum class Tab(val label: String, val icon: ImageVector) {
 
 /** What only the activity can do. */
 interface Host {
-    /** Runs [then] once location access is granted (asking for it if need be). */
-    fun withLocation(then: () -> Unit)
+    /**
+     * Runs [then] once location access is granted (asking for it if need be), and with
+     * [steps], asks for the pedometer too (the activity goes ahead without it if refused).
+     */
+    fun withLocation(steps: Boolean, then: () -> Unit)
     fun pickExportFolder()
     fun pickImport(replace: Boolean)
     fun saveGpx(workoutId: String, name: String)

@@ -16,6 +16,10 @@ pub enum WorkoutKind {
     StationaryBike,
     Meditation,
     Breathing,
+    /// Not fitness: a trip on the water, logged and mapped but kept out of the trends.
+    Boat,
+    /// Not fitness: a drive, the same.
+    Drive,
 }
 
 impl WorkoutKind {
@@ -29,15 +33,36 @@ impl WorkoutKind {
             WorkoutKind::StationaryBike => "Stationary bike",
             WorkoutKind::Meditation => "Meditation",
             WorkoutKind::Breathing => "Breathing",
+            WorkoutKind::Boat => "Boat ride",
+            WorkoutKind::Drive => "Car ride",
         }
     }
 
-    /// Walks, runs, hikes and rides follow the GPS.
+    /// Walks, runs, hikes, rides, boat and car rides follow the GPS.
     pub fn uses_gps(self) -> bool {
-        matches!(self, WorkoutKind::Walk | WorkoutKind::Run | WorkoutKind::Hike | WorkoutKind::Bike)
+        matches!(
+            self,
+            WorkoutKind::Walk | WorkoutKind::Run | WorkoutKind::Hike | WorkoutKind::Bike | WorkoutKind::Boat | WorkoutKind::Drive
+        )
     }
 
-    pub const ALL: [WorkoutKind; 8] = [
+    /// Counts towards the trends (the week's count, the streak, the graphs).
+    /// Boat and car rides are kept apart: they're trips, not exercise.
+    pub fn is_fitness(self) -> bool {
+        !matches!(self, WorkoutKind::Boat | WorkoutKind::Drive)
+    }
+
+    /// Steps are counted (the phone's pedometer) on foot.
+    pub fn counts_steps(self) -> bool {
+        matches!(self, WorkoutKind::Walk | WorkoutKind::Run | WorkoutKind::Hike)
+    }
+
+    /// Shown as a speed (mph) rather than a pace (min/mi).
+    pub fn uses_speed(self) -> bool {
+        matches!(self, WorkoutKind::Bike | WorkoutKind::StationaryBike | WorkoutKind::Boat | WorkoutKind::Drive)
+    }
+
+    pub const ALL: [WorkoutKind; 10] = [
         WorkoutKind::Lifting,
         WorkoutKind::Walk,
         WorkoutKind::Run,
@@ -46,6 +71,8 @@ impl WorkoutKind {
         WorkoutKind::StationaryBike,
         WorkoutKind::Meditation,
         WorkoutKind::Breathing,
+        WorkoutKind::Boat,
+        WorkoutKind::Drive,
     ];
 }
 
@@ -125,6 +152,26 @@ pub struct Settings {
     pub contrast: Contrast,
     /// What other apps' sound (music, podcasts) does while a cue plays.
     pub other_audio: OtherAudio,
+    /// How the activities on Home are ordered.
+    pub activity_sort: ActivitySort,
+    /// The order chosen by hand, for [ActivitySort::Manual] (kinds left out follow, in the standard order).
+    pub activity_order: Vec<WorkoutKind>,
+}
+
+/// How the activities to start are ordered on Home.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, uniffi::Enum)]
+#[serde(rename_all = "snake_case")]
+pub enum ActivitySort {
+    /// Weights, walk, run, hike, … as the app lists them.
+    Standard,
+    /// Done most often first.
+    MostUsed,
+    /// Done most recently first.
+    Recent,
+    /// By name, A to Z.
+    Alphabetical,
+    /// As arranged by hand.
+    Manual,
 }
 
 /// What other apps' sound does while one of Evolve's cues plays.
@@ -179,6 +226,8 @@ impl Default for Settings {
             map_dark_style: "Midnight".into(),
             contrast: Contrast::Standard,
             other_audio: OtherAudio::Leave,
+            activity_sort: ActivitySort::Standard,
+            activity_order: vec![],
         }
     }
 }
@@ -270,6 +319,9 @@ pub struct GpsLog {
     pub start_lat: f64,
     pub start_lon: f64,
     pub point_count: u32,
+    /// Steps from the phone's pedometer (walks, runs and hikes), if it has one.
+    #[serde(default)]
+    pub steps: Option<u32>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, uniffi::Enum)]
@@ -329,6 +381,10 @@ pub struct Workout {
 }
 
 impl Workout {
+    pub fn steps(&self) -> Option<u32> {
+        self.gps.as_ref().and_then(|g| g.steps).filter(|s| *s > 0)
+    }
+
     /// The distance covered, from the GPS or as typed in.
     pub fn distance(&self) -> Option<f64> {
         self.gps.as_ref().map(|g| g.distance_m).or(self.distance_m)

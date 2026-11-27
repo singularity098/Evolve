@@ -258,6 +258,71 @@ fn old_settings_take_new_defaults() {
     assert_eq!(s.map_light_style, "Bright");
     assert_eq!(s.map_dark_style, "Midnight");
     assert_eq!(s.contrast, Contrast::Standard);
+    assert_eq!(s.activity_sort, ActivitySort::Standard);
+    assert!(s.activity_order.is_empty());
     let back: Settings = serde_json::from_str(&serde_json::to_string(&s).unwrap()).unwrap();
     assert_eq!(back, s);
+}
+
+#[test]
+fn car_rides_never_pause_and_stay_out_of_the_trends() {
+    let (_dir, e) = engine();
+    e.start_gps(WorkoutKind::Drive, 0).unwrap();
+    // 30 m/s (67 mph) for two minutes.
+    let deg_per_m = 1.0 / 111_195.0;
+    let p = |m: f64, t: i64| TrackPoint { lat: 40.0 + m * deg_per_m, lon: -73.97, alt: None, t_ms: t, accuracy: 5.0, seg: 0 };
+    for s in 0..=120 {
+        assert!(!e.add_point(p(30.0 * s as f64, s * 1000)).unwrap().paused);
+    }
+    let gps = e.session().unwrap().gps.unwrap();
+    assert!((gps.distance_m - 3600.0).abs() < 50.0, "{}", gps.distance_m);
+    // Steps aren't counted in a car.
+    assert_eq!(e.add_steps(40).unwrap().gps.unwrap().steps, 0);
+    e.finish_session(121_000, "".into(), "".into(), None, false).unwrap();
+    e.log_manual(WorkoutKind::Run, "".into(), 200_000, 1800.0, Some(5000.0), "".into()).unwrap();
+
+    let q = |metric, kinds: Vec<WorkoutKind>| GraphQuery { metric, exercise_id: None, kinds, since_ms: None, utc_offset_min: 0 };
+    assert_eq!(e.graph(q(Metric::WorkoutsPerWeek, vec![])).points[0].value, 1.0);
+    assert_eq!(e.graph(q(Metric::Distance, vec![])).points.len(), 1);
+    assert_eq!(e.graph(q(Metric::Duration, vec![])).points.len(), 1);
+    // Asked for by name, it's there.
+    assert_eq!(e.graph(q(Metric::Distance, vec![WorkoutKind::Drive])).points.len(), 1);
+    // Still in the history.
+    assert_eq!(e.history(HistoryFilter::default()).len(), 2);
+}
+
+#[test]
+fn steps_count_while_not_paused() {
+    let (_dir, e) = engine();
+    e.start_gps(WorkoutKind::Walk, 0).unwrap();
+    e.add_steps(120).unwrap();
+    e.pause(10_000).unwrap();
+    e.add_steps(50).unwrap();
+    e.resume(20_000).unwrap();
+    assert_eq!(e.add_steps(30).unwrap().gps.unwrap().steps, 150);
+    let id = e.finish_session(60_000, "".into(), "".into(), None, false).unwrap();
+    let w = e.workout(id).unwrap();
+    assert_eq!(w.gps.as_ref().unwrap().steps, Some(150));
+    let g = e.graph(GraphQuery { metric: Metric::Steps, exercise_id: None, kinds: vec![], since_ms: None, utc_offset_min: 0 });
+    assert_eq!(g.points.len(), 1);
+    assert_eq!(g.points[0].value, 150.0);
+}
+
+#[test]
+fn activities_order_as_chosen() {
+    let (_dir, e) = engine();
+    assert_eq!(e.home_kinds(ActivitySort::Standard, vec![]), WorkoutKind::ALL.to_vec());
+    e.log_manual(WorkoutKind::Meditation, "".into(), 1_000, 600.0, None, "".into()).unwrap();
+    e.log_manual(WorkoutKind::Meditation, "".into(), 2_000, 600.0, None, "".into()).unwrap();
+    e.log_manual(WorkoutKind::Run, "".into(), 3_000, 600.0, None, "".into()).unwrap();
+    let set = |sort, order: Vec<WorkoutKind>| e.home_kinds(sort, order);
+    let k = set(ActivitySort::MostUsed, vec![]);
+    assert_eq!(&k[..3], &[WorkoutKind::Meditation, WorkoutKind::Run, WorkoutKind::Lifting]);
+    let k = set(ActivitySort::Recent, vec![]);
+    assert_eq!(&k[..3], &[WorkoutKind::Run, WorkoutKind::Meditation, WorkoutKind::Lifting]);
+    let k = set(ActivitySort::Alphabetical, vec![]);
+    assert_eq!(&k[..3], &[WorkoutKind::Bike, WorkoutKind::Boat, WorkoutKind::Breathing]);
+    let k = set(ActivitySort::Manual, vec![WorkoutKind::Breathing, WorkoutKind::Hike]);
+    assert_eq!(&k[..3], &[WorkoutKind::Breathing, WorkoutKind::Hike, WorkoutKind::Lifting]);
+    assert_eq!(k.len(), WorkoutKind::ALL.len());
 }

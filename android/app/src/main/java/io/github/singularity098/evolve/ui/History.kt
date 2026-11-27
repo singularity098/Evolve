@@ -43,6 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.singularity098.evolve.Store
@@ -54,6 +55,8 @@ import io.github.singularity098.evolve.core.formatDistance
 import io.github.singularity098.evolve.core.formatDuration
 import io.github.singularity098.evolve.core.formatElevation
 import io.github.singularity098.evolve.core.formatNumber
+import io.github.singularity098.evolve.core.kindIsFitness
+import io.github.singularity098.evolve.core.kindUsesSpeed
 import io.github.singularity098.evolve.core.formatPace
 import io.github.singularity098.evolve.core.formatSpeed
 import io.github.singularity098.evolve.core.kindLabel
@@ -221,10 +224,30 @@ private fun WorkoutDetail(
                             Stat(formatDuration(w.durationSecs), "time", Modifier.weight(1f))
                         }
                         Row {
-                            if (w.kind == WorkoutKind.BIKE) Stat(formatSpeed(g.distanceM, g.movingSecs, s.distanceUnit), "avg speed", Modifier.weight(1f))
+                            if (kindUsesSpeed(w.kind)) Stat(formatSpeed(g.distanceM, g.movingSecs, s.distanceUnit), "avg speed", Modifier.weight(1f))
                             else Stat(formatPace(g.distanceM, g.movingSecs, s.distanceUnit), "pace", Modifier.weight(1f))
                             Stat(formatDuration(g.movingSecs), "moving", Modifier.weight(1f))
-                            Stat(formatElevation(g.elevationGainM, s.distanceUnit), "climb", Modifier.weight(1f))
+                            if (w.kind != WorkoutKind.BOAT) Stat(formatElevation(g.elevationGainM, s.distanceUnit), "climb", Modifier.weight(1f))
+                        }
+                        g.steps?.takeIf { it > 0u }?.let { n ->
+                            Row {
+                                Stat(formatNumber(n.toDouble(), 0u), "steps", Modifier.weight(1f))
+                                // Steps a minute while moving.
+                                Stat(
+                                    if (g.movingSecs > 0) formatNumber(n.toDouble() / (g.movingSecs / 60.0), 0u) else "–",
+                                    "steps/min",
+                                    Modifier.weight(1f),
+                                )
+                            }
+                        }
+                        if (!kindIsFitness(w.kind)) {
+                            Text(
+                                "A trip: kept out of the trends and graphs.",
+                                Modifier.fillMaxWidth(),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                            )
                         }
                     }
                 }
@@ -236,9 +259,9 @@ private fun WorkoutDetail(
                         w.distanceM?.let { d ->
                             Stat(formatDistance(d, s.distanceUnit), "distance", Modifier.weight(1f))
                             Stat(
-                                if (w.kind == WorkoutKind.STATIONARY_BIKE || w.kind == WorkoutKind.BIKE) formatSpeed(d, w.durationSecs, s.distanceUnit)
+                                if (kindUsesSpeed(w.kind)) formatSpeed(d, w.durationSecs, s.distanceUnit)
                                 else formatPace(d, w.durationSecs, s.distanceUnit),
-                                if (w.kind == WorkoutKind.STATIONARY_BIKE || w.kind == WorkoutKind.BIKE) "speed" else "pace",
+                                if (kindUsesSpeed(w.kind)) "speed" else "pace",
                                 Modifier.weight(1f),
                             )
                         }

@@ -35,7 +35,7 @@ class MainActivity : ComponentActivity(), Host {
     private val locationPermission = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { r ->
         val then = afterLocation
         afterLocation = null
-        if (r[Manifest.permission.ACCESS_FINE_LOCATION] == true) {
+        if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             then?.invoke()
         } else {
             Toast.makeText(this, "GPS activities need location access", Toast.LENGTH_LONG).show()
@@ -94,14 +94,22 @@ class MainActivity : ComponentActivity(), Host {
 
     // ------------------------------------------------------------ Host
 
-    override fun withLocation(then: () -> Unit) {
-        if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+    override fun withLocation(steps: Boolean, then: () -> Unit) {
+        val wanted = buildList {
+            if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                add(Manifest.permission.ACCESS_FINE_LOCATION)
+                add(Manifest.permission.ACCESS_COARSE_LOCATION)
+            }
+            // The pedometer (Android 10 on asks for it; before, it's granted with the app).
+            if (steps && Build.VERSION.SDK_INT >= 29 &&
+                checkSelfPermission(Manifest.permission.ACTIVITY_RECOGNITION) != PackageManager.PERMISSION_GRANTED
+            ) add(Manifest.permission.ACTIVITY_RECOGNITION)
+        }
+        if (wanted.isEmpty()) {
             then()
         } else {
             afterLocation = then
-            locationPermission.launch(
-                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
-            )
+            locationPermission.launch(wanted.toTypedArray())
         }
     }
 

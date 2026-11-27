@@ -601,6 +601,24 @@ impl Engine {
         Ok(GpsUpdate { kept, live, paused })
     }
 
+    /// Steps the pedometer counted since its last report; ignored while paused.
+    pub fn add_steps(&self, steps: u32) -> Result<Session> {
+        self.change(|s| {
+            if s.paused_at_ms.is_none() && s.kind.counts_steps() {
+                if let Some(g) = s.gps.as_mut() {
+                    g.steps = g.steps.saturating_add(steps);
+                }
+            }
+        })
+    }
+
+    /// The activities to start, in the order asked for (the settings'
+    /// `activity_sort` and `activity_order`, passed in so a change shows at once).
+    pub fn home_kinds(&self, sort: ActivitySort, order: Vec<WorkoutKind>) -> Vec<WorkoutKind> {
+        let g = self.lock();
+        stats::order_kinds(&g.db.workouts, sort, &order)
+    }
+
     pub fn set_place_name(&self, name: String) -> Result<Session> {
         self.change(|s| {
             if let Some(g) = s.gps.as_mut() {
@@ -672,6 +690,7 @@ impl Engine {
             start_lat: gl.start_lat.unwrap_or(0.0),
             start_lon: gl.start_lon.unwrap_or(0.0),
             point_count: gl.points,
+            steps: (gl.steps > 0).then_some(gl.steps),
         });
         let timer = s.timer.as_ref().map(|t| {
             let st = session::timer_status(t, s.elapsed_ms(now_ms));
@@ -909,6 +928,24 @@ pub fn kind_label(kind: WorkoutKind) -> String {
 #[uniffi::export]
 pub fn kind_uses_gps(kind: WorkoutKind) -> bool {
     kind.uses_gps()
+}
+
+/// Counts towards the trends: not a boat or car ride.
+#[uniffi::export]
+pub fn kind_is_fitness(kind: WorkoutKind) -> bool {
+    kind.is_fitness()
+}
+
+/// The pedometer runs for it: a walk, run or hike.
+#[uniffi::export]
+pub fn kind_counts_steps(kind: WorkoutKind) -> bool {
+    kind.counts_steps()
+}
+
+/// Shown as a speed rather than a pace: rides, boat and car.
+#[uniffi::export]
+pub fn kind_uses_speed(kind: WorkoutKind) -> bool {
+    kind.uses_speed()
 }
 
 #[uniffi::export]

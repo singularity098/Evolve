@@ -11,7 +11,9 @@ Everything stays on the phone, and can be exported and imported whole.
 Six tabs along the bottom, and a swipe sideways moves between them (except
 on a GPS activity's map, which takes the drag for itself):
 
-* **Home**: choose today's activity, see this week's count and your streak,
+* **Home**: choose today's activity (the order button beside the heading
+  sorts them: the standard order, most used, most recent, A to Z, or
+  arranged by hand), see this week's count and your streak,
   log your body weight (any day, active or not), or enter a past activity
   by hand.
 * **In progress**: only while an activity is under way.
@@ -37,7 +39,7 @@ on a GPS activity's map, which takes the drag for itself):
 * **Weights.** Routines are designed in detail in Settings: any number of
   barbell, dumbbell, kettlebell, machine, cable or bodyweight exercises,
   each with its own sets (reps and weight per set) and rest. During the
-  activity each set is a round button showing its reps (a dashed ring until it's done, then a solid painted one): tap it when done
+  activity each set is a round button showing its reps (a thin light grey ring until it's done, the next one a little brighter with a soft wash inside, then a disc filled with the theme's paint): tap it when done
   and the rest timer starts, with a sound and a buzz when it's over (also
   with the screen off). Hold a set to record fewer reps or change its
   weight; the ± buttons change the weight for the sets still to do. Add
@@ -54,6 +56,13 @@ on a GPS activity's map, which takes the drag for itself):
   without ending the hike: over ~12 mph for a walk or hike, ~20 mph for a
   run, ~45 mph for a ride, for 20–30 s) pauses it by itself, back at the
   moment the speed went up, so the drive isn't counted. When it's saved the name defaults to where you started ("Central Park").
+  Walks, runs and hikes also count steps with the phone's pedometer (if it has
+  one, and with the physical activity permission): shown live, in the
+  notification and the history (with steps a minute), and graphed.
+* **Boat ride, car ride.** Mapped and measured like the others (speed, not
+  pace; they never pause themselves for going fast), but they're trips, not
+  exercise: they stay out of the week's count, the streak and the graphs.
+  They're in the history and the calendar.
 * **Stationary bike.** A free-ride stopwatch, a countdown, or an interval
   program: blocks of timed intervals, each block repeated as many times as
   you like. For example: get ready 10 s, warm-up 5 min, then 5 × (all out

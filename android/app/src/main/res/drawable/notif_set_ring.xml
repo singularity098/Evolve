@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- A set still to do in the notification: a thin ring of dots (tinted grey in code). -->
+<!-- A set still to do in the notification: a thin, light ring (tinted grey in code). -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
-    <stroke android:width="1dp" android:color="#FFFFFFFF" android:dashWidth="1dp" android:dashGap="2.5dp" />
+    <stroke android:width="1dp" android:color="#80FFFFFF" />
 </shape>

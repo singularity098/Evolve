@@ -232,6 +232,26 @@ object EvolveIcons {
             weight = 1.7f,
         )
     }
+    /** A sailing boat: hull, mast, mainsail and jib. */
+    val Boat: ImageVector by lazy {
+        icon(
+            "Boat",
+            line = "M 3 15.5 L 21 15.5 L 18.5 19.5 L 5.5 19.5 Z M 12 3.5 L 12 15.5 M 12 4.5 L 18.5 12.5 L 12 12.5 M 10.5 6.5 L 6 12.5 L 10.5 12.5",
+            weight = 1.7f,
+        )
+    }
+    /** A car from the side: body, windows' line, two wheels. */
+    val Car: ImageVector by lazy {
+        icon(
+            "Car",
+            line = "M 5.5 17 L 3.5 17 L 3.5 12.5 L 6 8 C 6.3 7.4 6.9 7 7.6 7 L 16.4 7 C 17.1 7 17.7 7.4 18 8 L 20.5 12.5 L 20.5 17 L 18.5 17 M 14.5 17 L 9.5 17 M 3.5 12.5 L 20.5 12.5 M 12 7 L 12 12.5 M 7.5 19 A 2 2 0 1 1 7.5 15 A 2 2 0 1 1 7.5 19 Z M 16.5 19 A 2 2 0 1 1 16.5 15 A 2 2 0 1 1 16.5 19 Z",
+            weight = 1.7f,
+        )
+    }
+    /** Lines shortening downwards: put in order. */
+    val Sort: ImageVector by lazy {
+        icon("Sort", line = "M 4 7 L 20 7 M 4 12 L 15 12 M 4 17 L 10 17")
+    }
     val StationaryBike: ImageVector by lazy {
         icon(
             "StationaryBike",

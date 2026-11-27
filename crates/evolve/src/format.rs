@@ -120,15 +120,24 @@ pub fn headline(w: &Workout, s: &Settings) -> String {
             let vol = weight_value(w.volume_kg(), s.weight_unit);
             format!("{dur} · {sets} sets · {} {}", grouped(vol), unit_label(s.weight_unit))
         }
-        WorkoutKind::Walk | WorkoutKind::Run | WorkoutKind::Hike | WorkoutKind::Bike | WorkoutKind::StationaryBike => {
+        WorkoutKind::Walk
+        | WorkoutKind::Run
+        | WorkoutKind::Hike
+        | WorkoutKind::Bike
+        | WorkoutKind::StationaryBike
+        | WorkoutKind::Boat
+        | WorkoutKind::Drive => {
             match w.distance() {
                 Some(d) if d > 0.0 => {
-                    let rate = if matches!(w.kind, WorkoutKind::Bike | WorkoutKind::StationaryBike) {
+                    let rate = if w.kind.uses_speed() {
                         speed(d, w.gps.as_ref().map(|g| g.moving_secs).filter(|m| *m > 0.0).unwrap_or(w.duration_secs), s.distance_unit)
                     } else {
                         pace(d, w.gps.as_ref().map(|g| g.moving_secs).filter(|m| *m > 0.0).unwrap_or(w.duration_secs), s.distance_unit)
                     };
-                    format!("{} · {dur} · {rate}", distance(d, s.distance_unit))
+                    match w.steps() {
+                        Some(n) => format!("{} · {dur} · {rate} · {} steps", distance(d, s.distance_unit), grouped(n as f64)),
+                        None => format!("{} · {dur} · {rate}", distance(d, s.distance_unit)),
+                    }
                 }
                 _ => match &w.timer {
                     Some(t) if t.mode == TimerMode::Program => format!("{dur} · {}", t.program_name),

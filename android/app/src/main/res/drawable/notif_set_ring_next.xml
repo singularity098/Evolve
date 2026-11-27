@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The next set in the notification: a slightly heavier ring of dots (tinted grey in code). -->
+<!-- The next set in the notification: a slightly brighter ring with a soft wash inside
+     (tinted grey in code; the tint keeps these alphas). -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
-    <stroke android:width="1.5dp" android:color="#FFFFFFFF" android:dashWidth="1.5dp" android:dashGap="2.5dp" />
+    <solid android:color="#1FFFFFFF" />
+    <stroke android:width="1.2dp" android:color="#FFFFFFFF" />
 </shape>

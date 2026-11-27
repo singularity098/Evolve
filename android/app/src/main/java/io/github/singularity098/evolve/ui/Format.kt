@@ -29,6 +29,8 @@ fun kindIcon(kind: WorkoutKind): ImageVector = when (kind) {
     WorkoutKind.STATIONARY_BIKE -> EvolveIcons.StationaryBike
     WorkoutKind.MEDITATION -> EvolveIcons.Lotus
     WorkoutKind.BREATHING -> EvolveIcons.Wind
+    WorkoutKind.BOAT -> EvolveIcons.Boat
+    WorkoutKind.DRIVE -> EvolveIcons.Car
 }
 
 fun intensityColor(i: Intensity): Color = when (i) {

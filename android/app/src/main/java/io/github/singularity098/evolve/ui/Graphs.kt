@@ -53,6 +53,7 @@ import io.github.singularity098.evolve.core.Metric
 import io.github.singularity098.evolve.core.WorkoutKind
 import io.github.singularity098.evolve.core.formatDuration
 import io.github.singularity098.evolve.core.formatNumber
+import io.github.singularity098.evolve.core.kindIsFitness
 import io.github.singularity098.evolve.core.kindLabel
 import java.util.TimeZone
 import kotlin.math.abs
@@ -72,7 +73,9 @@ private val Options = listOf(
     MetricOption("Pace", Metric.PACE, kinds = listOf(WorkoutKind.WALK, WorkoutKind.RUN, WorkoutKind.HIKE)),
     MetricOption("Speed", Metric.SPEED, kinds = listOf(WorkoutKind.BIKE, WorkoutKind.STATIONARY_BIKE)),
     MetricOption("Climb", Metric.ELEVATION_GAIN, kinds = listOf(WorkoutKind.WALK, WorkoutKind.RUN, WorkoutKind.HIKE, WorkoutKind.BIKE)),
-    MetricOption("Duration", Metric.DURATION, kinds = WorkoutKind.entries.toList()),
+    MetricOption("Steps", Metric.STEPS, kinds = listOf(WorkoutKind.WALK, WorkoutKind.RUN, WorkoutKind.HIKE)),
+    // Boat and car rides are trips, not exercise: never in the graphs.
+    MetricOption("Duration", Metric.DURATION, kinds = WorkoutKind.entries.filter { kindIsFitness(it) }),
     MetricOption("Longest breath hold", Metric.BREATH_MAX_HOLD),
     MetricOption("Average breath hold", Metric.BREATH_AVERAGE_HOLD),
     MetricOption("Meditation", Metric.MEDITATION_MINUTES),

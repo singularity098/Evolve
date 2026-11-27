@@ -44,6 +44,9 @@ pub struct GpsLive {
     /// Paused by itself, having gone too fast for too long; until resumed.
     #[serde(default)]
     pub auto_paused: bool,
+    /// Steps counted by the pedometer while not paused.
+    #[serde(default)]
+    pub steps: u32,
 }
 
 /// The fastest pace, in m/s, a workout of this kind keeps up: anything
@@ -54,9 +57,17 @@ pub fn top_speed_mps(kind: WorkoutKind) -> f64 {
         WorkoutKind::Walk | WorkoutKind::Hike => 5.5,
         // ~20 mph.
         WorkoutKind::Run => 9.0,
+        // Boat and car rides are meant to be fast: they never pause themselves.
+        WorkoutKind::Boat | WorkoutKind::Drive => f64::INFINITY,
         // ~45 mph: a long fast descent, at most.
         _ => 20.0,
     }
+}
+
+/// Faster than this from one fix to the next is a bad fix: no leg or bike
+/// goes 90 mph, but a car on a motorway can.
+fn max_jump_mps(kind: WorkoutKind) -> f64 {
+    if kind.is_fitness() { 45.0 } else { 90.0 }
 }
 
 /// How long the pace must stay too fast before the workout pauses.
@@ -349,7 +360,7 @@ impl Session {
         g.recent.retain(|f| f.t_ms <= p.t_ms && p.t_ms - f.t_ms <= RECENT_MS);
         if let Some(prev) = g.recent.last() {
             let dt = (p.t_ms - prev.t_ms) as f64 / 1000.0;
-            if dt > 0.0 && geo::haversine_m(prev.lat, prev.lon, p.lat, p.lon) / dt > 45.0 {
+            if dt > 0.0 && geo::haversine_m(prev.lat, prev.lon, p.lat, p.lon) / dt > max_jump_mps(kind) {
                 return None; // a bad fix: it mustn't set the pace either
             }
         }
@@ -386,8 +397,8 @@ impl Session {
                     false
                 } else {
                     let dt = (p.t_ms - l.t_ms).max(0) as f64 / 1000.0;
-                    // A jump faster than any human leg or bike is a bad fix.
-                    if dt > 0.0 && d / dt > 40.0 {
+                    // A jump faster than any human leg or bike (or car) is a bad fix.
+                    if dt > 0.0 && d / dt > max_jump_mps(kind) {
                         return None;
                     }
                     g.distance_m += d;

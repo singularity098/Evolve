@@ -22,6 +22,8 @@ pub enum Metric {
     Speed,
     Duration,
     ElevationGain,
+    /// Pedometer steps of each walk, run or hike.
+    Steps,
     BreathMaxHold,
     BreathAverageHold,
     MeditationMinutes,
@@ -78,12 +80,47 @@ fn sets_of<'a>(w: &'a Workout, exercise_id: &'a str) -> impl Iterator<Item = &'a
         .filter(|s| s.done && s.reps > 0)
 }
 
+/// The activities to start, ordered as the settings ask: by hand, by how
+/// often or how lately each was done, by name, or the standard order.
+pub fn order_kinds(workouts: &[Workout], sort: ActivitySort, order: &[WorkoutKind]) -> Vec<WorkoutKind> {
+    let mut kinds = WorkoutKind::ALL.to_vec();
+    let standard = |k: &WorkoutKind| WorkoutKind::ALL.iter().position(|x| x == k).unwrap_or(usize::MAX);
+    match sort {
+        ActivitySort::Standard => {}
+        ActivitySort::Alphabetical => kinds.sort_by_key(|k| k.label()),
+        ActivitySort::MostUsed => {
+            let count = |k: &WorkoutKind| workouts.iter().filter(|w| w.kind == *k).count();
+            kinds.sort_by_key(|k| (std::cmp::Reverse(count(k)), standard(k)));
+        }
+        ActivitySort::Recent => {
+            let last = |k: &WorkoutKind| workouts.iter().filter(|w| w.kind == *k).map(|w| w.started_at_ms).max();
+            kinds.sort_by_key(|k| (std::cmp::Reverse(last(k)), standard(k)));
+        }
+        ActivitySort::Manual => {
+            let mut ordered: Vec<WorkoutKind> = vec![];
+            for k in order {
+                if !ordered.contains(k) {
+                    ordered.push(*k);
+                }
+            }
+            ordered.extend(kinds.iter().filter(|k| !ordered.contains(k)).copied().collect::<Vec<_>>());
+            kinds = ordered;
+        }
+    }
+    kinds
+}
+
 pub fn graph(db: &Database, q: &GraphQuery) -> GraphSeries {
     let s = &db.settings;
     let wu = s.weight_unit;
     let du = s.distance_unit;
     let since = q.since_ms.unwrap_or(i64::MIN);
-    let mut workouts: Vec<&Workout> = db.workouts.iter().filter(|w| w.started_at_ms >= since).collect();
+    // Boat and car rides stay out of the trends unless asked for by name.
+    let mut workouts: Vec<&Workout> = db
+        .workouts
+        .iter()
+        .filter(|w| w.started_at_ms >= since && (w.kind.is_fitness() || q.kinds.contains(&w.kind)))
+        .collect();
     workouts.sort_by_key(|w| w.started_at_ms);
     let kind_ok = |w: &Workout, default: &dyn Fn(WorkoutKind) -> bool| {
         if q.kinds.is_empty() {
@@ -196,6 +233,11 @@ pub fn graph(db: &Database, q: &GraphQuery) -> GraphSeries {
                 let g = w.gps.as_ref()?.elevation_gain_m;
                 Some(if du == DistanceUnit::Km { g } else { g * 3.28084 })
             }),
+        ),
+        Metric::Steps => series(
+            "Steps".into(),
+            "steps",
+            per_workout(&|w| if kind_ok(w, &|k| k.counts_steps()) { w.steps().map(|n| n as f64) } else { None }),
         ),
         Metric::BreathMaxHold => GraphSeries {
             title: "Longest breath hold".into(),

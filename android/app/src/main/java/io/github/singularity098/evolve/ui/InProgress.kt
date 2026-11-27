@@ -64,7 +64,6 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.draw.drawBehind
@@ -89,6 +88,9 @@ import io.github.singularity098.evolve.core.formatPace
 import io.github.singularity098.evolve.core.formatSpeed
 import io.github.singularity098.evolve.core.kindLabel
 import io.github.singularity098.evolve.core.kindUsesGps
+import io.github.singularity098.evolve.core.kindUsesSpeed
+import io.github.singularity098.evolve.core.kindCountsSteps
+import io.github.singularity098.evolve.core.formatNumber
 import io.github.singularity098.evolve.core.weightIn
 
 @Composable
@@ -284,12 +286,12 @@ private fun LiftingScreen(store: Store, session: Session, onFinish: () -> Unit) 
                             FlowRow(horizontalArrangement = Arrangement.spacedBy(gap), verticalArrangement = Arrangement.spacedBy(gap)) {
                                 e.sets.forEachIndexed { si, set ->
                                     val next = !set.done && e.sets.take(si).all { it.done }
-                                    val grey = setGrey(next)
+                                    val greys = setGreys(next)
                                     Box(
                                         Modifier
                                             .size(circle)
                                             .clip(CircleShape)
-                                            .drawBehind { setRing(set.done, next, look, grey) }
+                                            .drawBehind { setRing(set.done, next, look, greys) }
                                             .combinedClickable(
                                                 onClick = {
                                                     val t = System.currentTimeMillis()
@@ -307,7 +309,7 @@ private fun LiftingScreen(store: Store, session: Session, onFinish: () -> Unit) 
                                             style = MaterialTheme.typography.titleLarge,
                                             fontWeight = FontWeight.Normal,
                                             textAlign = TextAlign.Center,
-                                            color = if (set.done) EvolveBackground else grey,
+                                            color = if (set.done) EvolveBackground else greys.number,
                                         )
                                     }
                                 }
@@ -377,40 +379,36 @@ private fun LiftingScreen(store: Store, session: Session, onFinish: () -> Unit) 
 }
 
 /**
- * The grey of a set still to do, its dots and its number alike: lighter for the next set.
- * No theme colour until it's done. Brighter at higher contrast.
+ * How a set still to do is drawn: its ring, its number and (the next set only) a wash
+ * inside. Greys only, no theme colour until it's done; brighter at higher contrast.
  */
+private data class SetGreys(val ring: Color, val number: Color, val wash: Color)
+
 @Composable
-private fun setGrey(next: Boolean): Color {
-    val a = when (LocalContrast.current) {
-        Contrast.STANDARD -> if (next) 0.62f else 0.36f
-        Contrast.HIGH -> if (next) 0.8f else 0.55f
-        Contrast.MAXIMUM -> if (next) 0.92f else 0.7f
+private fun setGreys(next: Boolean): SetGreys {
+    // ring, number, wash: the next set a little brighter, with a faint fill.
+    val (r, n, w) = when (LocalContrast.current) {
+        Contrast.STANDARD -> if (next) Triple(0.55f, 0.85f, 0.07f) else Triple(0.22f, 0.42f, 0f)
+        Contrast.HIGH -> if (next) Triple(0.75f, 0.95f, 0.10f) else Triple(0.40f, 0.60f, 0f)
+        Contrast.MAXIMUM -> if (next) Triple(0.90f, 1f, 0.14f) else Triple(0.60f, 0.78f, 0f)
     }
-    return Color.White.copy(alpha = a)
+    return SetGreys(Color.White.copy(alpha = r), Color.White.copy(alpha = n), Color.White.copy(alpha = w))
 }
 
 /**
- * A set's button: a thin ring of grey dots while it's to do (a little heavier on the next
- * set), and a disc filled with the theme's paint once it's done. Sizes are in dp on a
- * 48 dp button, scaled with it.
+ * A set's button: a thin, light grey ring while it's to do (the next set's a little
+ * brighter, with a soft wash inside), and a disc filled with the theme's paint once it's
+ * done. Sizes are in dp on a 48 dp button, scaled with it.
  */
-private fun DrawScope.setRing(done: Boolean, next: Boolean, look: Look, grey: Color) {
+private fun DrawScope.setRing(done: Boolean, next: Boolean, look: Look, greys: SetGreys) {
     val r = size.minDimension / 2
     val u = r / 24f
     if (done) {
         drawCircle(look.paint(), radius = r)
     } else {
-        val w = (if (next) 1.6f else 1.2f) * u
-        val c = r - w
-        // Round dots that close up evenly round the ring.
-        val n = (2 * Math.PI.toFloat() * c / (5f * u)).toInt().coerceAtLeast(6)
-        val step = 2 * Math.PI.toFloat() * c / n
-        drawCircle(
-            grey,
-            radius = c,
-            style = Stroke(w, cap = StrokeCap.Round, pathEffect = PathEffect.dashPathEffect(floatArrayOf(0.01f, step - 0.01f))),
-        )
+        if (next) drawCircle(greys.wash, radius = r)
+        val w = (if (next) 1.2f else 1f) * u
+        drawCircle(greys.ring, radius = r - w / 2, style = Stroke(w))
     }
 }
 
@@ -594,9 +592,13 @@ private fun GpsScreen(store: Store, session: Session, onFinish: () -> Unit) {
                 val d = g?.distanceM ?: 0.0
                 val moving = g?.movingSecs ?: 0.0
                 Stat(formatDistance(d, s.distanceUnit), "distance", Modifier.weight(1f))
-                if (session.kind == WorkoutKind.BIKE) Stat(formatSpeed(d, moving, s.distanceUnit), "speed", Modifier.weight(1f))
+                if (kindUsesSpeed(session.kind)) Stat(formatSpeed(d, moving, s.distanceUnit), "speed", Modifier.weight(1f))
                 else Stat(formatPace(d, moving, s.distanceUnit), "pace", Modifier.weight(1f))
-                Stat(formatElevation(g?.elevationGainM ?: 0.0, s.distanceUnit), "climb", Modifier.weight(1f))
+                if (session.kind != WorkoutKind.BOAT) Stat(formatElevation(g?.elevationGainM ?: 0.0, s.distanceUnit), "climb", Modifier.weight(1f))
+                // The pedometer's count, on foot (once it has counted something).
+                if (kindCountsSteps(session.kind) && (g?.steps ?: 0u) > 0u) {
+                    Stat(formatNumber(g!!.steps.toDouble(), 0u), "steps", Modifier.weight(1f))
+                }
             }
             val place = g?.placeName.orEmpty()
             val tooFast = paused && session.gps?.autoPaused == true

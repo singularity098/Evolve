@@ -150,6 +150,18 @@ class Store(private val context: Context) {
         }
     }
 
+    /** Steps the pedometer counted since it last reported (not counted while paused). */
+    fun addSteps(n: Int) {
+        if (n <= 0) return
+        try {
+            val s = engine.addSteps(n.toUInt())
+            _session.value = s
+            _gps.value = s.gps
+        } catch (t: Throwable) {
+            Log.e("evolve", "addSteps failed", t)
+        }
+    }
+
     /** Saves the workout under way to the history, and exports if asked to. */
     fun finish(name: String, notes: String, distanceM: Double?, updateRoutine: Boolean) {
         try {
