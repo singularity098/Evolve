@@ -137,7 +137,7 @@ fun HomeScreen(store: Store, host: Host) {
                     Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                         IconBadge(kindIcon(live.kind))
                         Column(Modifier.padding(start = 12.dp).weight(1f)) {
-                            Text("Workout in progress", style = MaterialTheme.typography.titleMedium)
+                            Text("Activity in progress", style = MaterialTheme.typography.titleMedium)
                             Text(kindLabel(live.kind), color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         PaintedIcon(EvolveIcons.Pulse, Modifier.size(28.dp))
@@ -146,7 +146,7 @@ fun HomeScreen(store: Store, host: Host) {
             }
         }
         item(span = { GridItemSpan(2) }) {
-            SectionTitle(if (todays.isEmpty()) "Choose today's workout" else "Something more today?", Modifier.padding(start = 0.dp))
+            SectionTitle(if (todays.isEmpty()) "Choose today's activity" else "Something more today?", Modifier.padding(start = 0.dp))
         }
         items(HomeKinds) { k ->
             Panel(Modifier.fillMaxWidth().height(118.dp), onClick = { pick(k) }) {
@@ -185,7 +185,7 @@ fun HomeScreen(store: Store, host: Host) {
                 Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                     PaintedIcon(EvolveIcons.Edit, Modifier.size(26.dp))
                     Column(Modifier.padding(start = 10.dp)) {
-                        Text("Past workout", style = MaterialTheme.typography.titleSmall)
+                        Text("Past activity", style = MaterialTheme.typography.titleSmall)
                         Text("Enter it by hand", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
@@ -213,7 +213,7 @@ fun HomeScreen(store: Store, host: Host) {
         AlertDialog(
             onDismissRequest = { busy = false },
             icon = { PaintedIcon(EvolveIcons.Pulse) },
-            title = { Text("A workout is under way") },
+            title = { Text("An activity is under way") },
             text = { Text("Finish or discard it on the In progress tab before starting another.") },
             confirmButton = { TextButton(onClick = { busy = false }) { Text("OK") } },
         )

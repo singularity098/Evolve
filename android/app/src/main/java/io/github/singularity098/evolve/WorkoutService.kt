@@ -114,7 +114,7 @@ class WorkoutService : Service() {
         tones = Tones(this)
         val nm = getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(
-            NotificationChannel(CHANNEL, "Workout in progress", NotificationManager.IMPORTANCE_LOW).apply {
+            NotificationChannel(CHANNEL, "Activity in progress", NotificationManager.IMPORTANCE_LOW).apply {
                 setShowBadge(false)
             }
         )

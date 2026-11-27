@@ -186,7 +186,7 @@ impl Inner {
     }
 
     fn session_mut(&mut self) -> Result<&mut Session> {
-        self.session.as_mut().ok_or(EvolveError::NoSession { msg: "No workout is under way".into() })
+        self.session.as_mut().ok_or(EvolveError::NoSession { msg: "No activity is under way".into() })
     }
 
     fn start(&mut self, s: Session) -> Result<Session> {
@@ -655,7 +655,7 @@ impl Engine {
     ) -> Result<String> {
         let default_name = self.default_session_name();
         let mut g = self.lock();
-        let mut s = g.session.clone().ok_or(EvolveError::NoSession { msg: "No workout is under way".into() })?;
+        let mut s = g.session.clone().ok_or(EvolveError::NoSession { msg: "No activity is under way".into() })?;
         s.resume(now_ms);
         let elapsed = s.elapsed_ms(now_ms) as f64 / 1000.0;
         let id = new_id();

@@ -116,8 +116,8 @@ fun HistoryScreen(
         if (list.isEmpty()) {
             EmptyMessage(
                 EvolveIcons.History,
-                if (kinds.isEmpty() && query.isEmpty()) "No workouts yet" else "Nothing matches",
-                if (kinds.isEmpty() && query.isEmpty()) "Your finished workouts gather here, newest first." else "Try other filters.",
+                if (kinds.isEmpty() && query.isEmpty()) "No activities yet" else "Nothing matches",
+                if (kinds.isEmpty() && query.isEmpty()) "Your finished activities gather here, newest first." else "Try other filters.",
             )
             return@Column
         }
@@ -332,7 +332,7 @@ private fun WorkoutDetail(
         var notes by remember { mutableStateOf(w.notes) }
         AlertDialog(
             onDismissRequest = { editing = false },
-            title = { Text("Edit workout") },
+            title = { Text("Edit activity") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(name, { name = it }, label = { Text("Name") }, singleLine = true)

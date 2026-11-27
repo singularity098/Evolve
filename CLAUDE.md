@@ -17,3 +17,9 @@ See `README.md`. A Rust engine (`crates/evolve`, exposed through UniFFI) under a
 Compose app (`android/`), styled after Chippy (singularity098/Chippy). `cargo test` tests the
 engine; `android/build-apk.sh` builds the APK. The database is JSON and doubles as the export
 format: only ever add fields (with serde defaults), never rename them.
+
+## Wording
+
+In anything the user sees, say **activity**, not "workout" (breathing and meditation aren't
+workouts). Code identifiers, the engine's types and the JSON fields keep `workout`: renaming
+them would break the export format.

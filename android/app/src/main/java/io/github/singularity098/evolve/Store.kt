@@ -127,7 +127,7 @@ class Store(private val context: Context) {
             WorkoutService.start(context)
         } catch (t: Throwable) {
             Log.e("evolve", "start failed", t)
-            say(t.message ?: "The workout could not start")
+            say(t.message ?: "The activity could not start")
         }
     }
 
@@ -141,7 +141,7 @@ class Store(private val context: Context) {
                 // Paused back where the speed went up: the trail may have lost its last few points.
                 _session.value = engine.session()
                 _trail.value = engine.sessionTrack()
-                say("Paused: moving too fast for this workout (a car?). Resume to go on.")
+                say("Paused: moving too fast for this activity (a car?). Resume to go on.")
             }
             return u.paused
         } catch (t: Throwable) {
@@ -159,7 +159,7 @@ class Store(private val context: Context) {
             if (settings.autoExport) autoExport()
         } catch (t: Throwable) {
             Log.e("evolve", "finish failed", t)
-            say(t.message ?: "The workout could not be saved")
+            say(t.message ?: "The activity could not be saved")
         }
     }
 
@@ -226,7 +226,7 @@ class Store(private val context: Context) {
             }
             refresh()
             if (r != null) {
-                say("Imported ${r.workouts} workouts, ${r.bodyWeights} weigh-ins, ${r.routines} routines, ${r.programs} programs")
+                say("Imported ${r.workouts} activities, ${r.bodyWeights} weigh-ins, ${r.routines} routines, ${r.programs} programs")
             }
         }
     }

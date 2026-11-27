@@ -81,15 +81,15 @@ private fun MainSettings(store: Store, host: Host, open: (SettingsPage) -> Unit)
     LazyColumn(Modifier.fillMaxSize().statusBarsPadding(), contentPadding = PaddingValues(bottom = 32.dp)) {
         item { Text("Settings", Modifier.padding(start = 16.dp, top = 16.dp), style = MaterialTheme.typography.headlineMedium) }
 
-        item { SectionTitle("Design your workouts") }
+        item { SectionTitle("Design your activities") }
         item { NavRow(EvolveIcons.Dumbbell, "Routines", "${library.routines.size} weight-lifting routines: exercises, sets, reps, weights, rest") { open(SettingsPage.Routines) } }
         item { NavRow(EvolveIcons.Timer, "Interval programs", "${library.programs.size} timer programs for the stationary bike") { open(SettingsPage.Programs) } }
         item { NavRow(EvolveIcons.Edit, "Exercises", "${library.exercises.size} in the library") { open(SettingsPage.Exercises) } }
         item { NavRow(EvolveIcons.Scale, "Body weight", "Every weigh-in") { open(SettingsPage.BodyWeights) } }
 
-        item { SectionTitle("During a workout") }
+        item { SectionTitle("During an activity") }
         item {
-            SwitchRow("Keep the screen on", "While a workout is under way. Each workout can change it with the sun button.", s.keepScreenOn) { on ->
+            SwitchRow("Keep the screen on", "While an activity is under way. Each one can change it with the sun button.", s.keepScreenOn) { on ->
                 store.updateSettings { it.copy(keepScreenOn = on) }
             }
         }
@@ -117,7 +117,7 @@ private fun MainSettings(store: Store, host: Host, open: (SettingsPage) -> Unit)
         }
         item { SwitchRow("Vibrate", "", s.vibrate) { on -> store.updateSettings { it.copy(vibrate = on) } } }
         item {
-            StepRow("Rest between sets", formatDuration(s.defaultRestSecs.toDouble()), "For exercises added to a routine or a workout") { d ->
+            StepRow("Rest between sets", formatDuration(s.defaultRestSecs.toDouble()), "For exercises added to a routine or an activity") { d ->
                 store.updateSettings { it.copy(defaultRestSecs = (it.defaultRestSecs.toInt() + d * 15).coerceIn(15, 600).toUInt()) }
             }
         }
@@ -173,9 +173,9 @@ private fun MainSettings(store: Store, host: Host, open: (SettingsPage) -> Unit)
                 }
             }
         }
-        item { Hint("The sun and moon button on a map switches it for that workout.") }
+        item { Hint("The sun and moon button on a map switches it for that activity.") }
         item {
-            StepRow("Offline map radius", "${formatNumber(s.mapCacheMiles, 0u)} mi", "Kept around GPS workouts, for when the signal goes") { d ->
+            StepRow("Offline map radius", "${formatNumber(s.mapCacheMiles, 0u)} mi", "Kept around GPS activities, for when the signal goes") { d ->
                 store.updateSettings { it.copy(mapCacheMiles = (it.mapCacheMiles + d * 5).coerceIn(5.0, 50.0)) }
             }
         }
@@ -204,7 +204,7 @@ private fun MainSettings(store: Store, host: Host, open: (SettingsPage) -> Unit)
             }
         }
         item {
-            SwitchRow("Export after every workout", "Everything is saved to the export folder as soon as a workout is.", s.autoExport) { on ->
+            SwitchRow("Export after every activity", "Everything is saved to the export folder as soon as an activity is.", s.autoExport) { on ->
                 if (on && s.exportUri.isEmpty()) host.pickExportFolder()
                 store.updateSettings { it.copy(autoExport = on) }
             }

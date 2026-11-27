@@ -115,7 +115,7 @@ pub fn graph(db: &Database, q: &GraphQuery) -> GraphSeries {
             series("Body weight".into(), unit_label(wu), pts)
         }
         Metric::LiftingVolume => series(
-            "Volume per workout".into(),
+            "Lifting volume".into(),
             unit_label(wu),
             per_workout(&|w| (w.kind == WorkoutKind::Lifting).then(|| weight_value(w.volume_kg(), wu))),
         ),
@@ -246,7 +246,7 @@ pub fn graph(db: &Database, q: &GraphQuery) -> GraphSeries {
                 .map(|(k, v)| GraphPoint { t_ms: k * WEEK + week0 - offset, value: v, workout_id: None })
                 .collect();
             if q.metric == Metric::WorkoutsPerWeek {
-                series("Workouts per week".into(), "workouts", pts)
+                series("Activities per week".into(), "activities", pts)
             } else {
                 series("Minutes per week".into(), "min", pts)
             }

@@ -136,7 +136,7 @@ fun StartSheet(store: Store, kind: WorkoutKind, onManual: () -> Unit, onClose: (
                         modifier = Modifier.clickable { go { startLifting(null, now) } },
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                         leadingContent = { PaintedIcon(EvolveIcons.Plus, Modifier.size(24.dp)) },
-                        headlineContent = { Text("Empty workout") },
+                        headlineContent = { Text("Empty activity") },
                         supportingContent = { Text("Add exercises as you go") },
                     )
                 }
@@ -262,7 +262,7 @@ fun ManualWorkoutDialog(store: Store, initial: WorkoutKind, onClose: () -> Unit)
     val hasDistance = kind != WorkoutKind.LIFTING && kind != WorkoutKind.MEDITATION && kind != WorkoutKind.BREATHING
     AlertDialog(
         onDismissRequest = onClose,
-        title = { Text("Enter a workout") },
+        title = { Text("Enter an activity") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -346,7 +346,7 @@ fun FinishDialog(store: Store, session: Session, onClose: () -> Unit) {
                     }
                 }
                 TextButton(onClick = { discard = true }) {
-                    Text("Discard this workout", color = MaterialTheme.colorScheme.error)
+                    Text("Discard this activity", color = MaterialTheme.colorScheme.error)
                 }
             }
         },
@@ -361,7 +361,7 @@ fun FinishDialog(store: Store, session: Session, onClose: () -> Unit) {
     )
     if (discard) {
         ConfirmDialog(
-            "Discard the workout?",
+            "Discard the activity?",
             "It won't be saved to your history.",
             "Discard",
             onConfirm = {

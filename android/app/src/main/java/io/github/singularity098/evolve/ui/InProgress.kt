@@ -58,6 +58,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -75,6 +76,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.singularity098.evolve.Store
 import io.github.singularity098.evolve.core.BreathPhase
+import io.github.singularity098.evolve.core.FlatStep
 import io.github.singularity098.evolve.core.Session
 import io.github.singularity098.evolve.core.TimerMode
 import io.github.singularity098.evolve.core.WorkoutKind
@@ -642,12 +644,21 @@ private fun GpsScreen(store: Store, session: Session, onFinish: () -> Unit) {
 
 // ------------------------------------------------------------------- timer
 
-/** A ring that empties as [progress] goes from 1 to 0, in the theme's paint. */
+/** A ring that empties as [progress] goes from 1 to 0, in the theme's paint, easing to each new value. */
 @Composable
 fun Ring(progress: Float, modifier: Modifier = Modifier, color: Color? = null, content: @Composable () -> Unit) {
+    val p by animateFloatAsState(progress.coerceIn(0f, 1f), label = "ring")
+    Ring({ p }, modifier, color, content)
+}
+
+/**
+ * A ring that empties as [progress] goes from 1 to 0. [progress] is read while drawing, so a
+ * value that changes every frame (see [rememberFrameNow]) redraws the ring without recomposing.
+ */
+@Composable
+fun Ring(progress: () -> Float, modifier: Modifier = Modifier, color: Color? = null, content: @Composable () -> Unit) {
     val look = LocalLook.current
     val track = MaterialTheme.colorScheme.surfaceContainerHighest
-    val p by animateFloatAsState(progress.coerceIn(0f, 1f), label = "ring")
     Box(modifier, contentAlignment = Alignment.Center) {
         Canvas(Modifier.fillMaxSize()) {
             val w = 14.dp.toPx()
@@ -655,7 +666,7 @@ fun Ring(progress: Float, modifier: Modifier = Modifier, color: Color? = null, c
             val tl = Offset((size.width - sz.width) / 2, (size.height - sz.height) / 2)
             drawArc(track, 0f, 360f, false, tl, sz, style = Stroke(w))
             val brush = color?.let { Brush.linearGradient(listOf(it, it)) } ?: look.paint(Offset.Zero, Offset(size.width, size.height))
-            drawArc(brush, -90f, 360f * p, false, tl, sz, style = Stroke(w, cap = StrokeCap.Round))
+            drawArc(brush, -90f, 360f * progress().coerceIn(0f, 1f), false, tl, sz, style = Stroke(w, cap = StrokeCap.Round))
         }
         content()
     }
@@ -667,6 +678,11 @@ private fun TimerScreen(store: Store, session: Session, onFinish: () -> Unit) {
     val t = session.timer ?: return
     val st = remember(now, session) { store.engine.timerStatus(now) } ?: return
     val steps = remember(t.program) { t.program?.let { flattenProgram(it) } ?: emptyList() }
+    // The text above ticks ten times a second; the ring and the timeline move every frame,
+    // carried on from the last status by the session's own clock (which knows about pauses).
+    val running = session.pausedAtMs == null && !st.finished && t.mode != TimerMode.STOPWATCH
+    val frame = rememberFrameNow(running)
+    val since = { (elapsedMs(session, frame.value) - st.elapsedMs).coerceAtLeast(0) }
 
     Column(Modifier.fillMaxSize().statusBarsPadding(), horizontalAlignment = Alignment.CenterHorizontally) {
         WorkoutBar(store, session, now, onFinish)
@@ -674,10 +690,12 @@ private fun TimerScreen(store: Store, session: Session, onFinish: () -> Unit) {
             val side = minOf(maxWidth, maxHeight) * 0.85f
             val color = if (t.mode == TimerMode.PROGRAM) intensityColor(st.intensity) else null
             Ring(
-                when {
-                    t.mode == TimerMode.STOPWATCH -> 1f
-                    st.finished -> 0f
-                    else -> st.stepRemainingMs.toFloat() / st.stepTotalMs.coerceAtLeast(1)
+                {
+                    when {
+                        t.mode == TimerMode.STOPWATCH -> 1f
+                        st.finished -> 0f
+                        else -> (st.stepRemainingMs - since()).toFloat() / st.stepTotalMs.coerceAtLeast(1)
+                    }
                 },
                 Modifier.size(side),
                 color,
@@ -700,47 +718,139 @@ private fun TimerScreen(store: Store, session: Session, onFinish: () -> Unit) {
                                 color = color ?: LocalLook.current.accent,
                             )
                             Text(countdown(st.stepRemainingMs), style = MaterialTheme.typography.displayLarge, fontSize = 72.sp)
-                            if (t.mode == TimerMode.PROGRAM) {
-                                Text(
-                                    "Interval ${st.index + 1u} of ${st.count}" + if (st.reps > 1u) " · round ${st.rep}/${st.reps}" else "",
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                                st.nextLabel?.let { Text("Next: $it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                            if (t.mode == TimerMode.PROGRAM && st.reps > 1u) {
+                                Text("Round ${st.rep} of ${st.reps}", color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     }
                 }
             }
         }
-        if (t.mode != TimerMode.STOPWATCH && !st.finished) {
+        if (steps.isNotEmpty()) {
+            ProgramTimeline(
+                steps,
+                st.index.toInt(),
+                { st.totalMs - st.totalRemainingMs + if (st.finished) 0 else since() },
+                Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+            )
+            Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp)) {
+                Text(
+                    if (st.finished) "All ${st.count} intervals done" else "Interval ${st.index + 1u} of ${st.count}",
+                    Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (!st.finished) {
+                    Text(
+                        "${countdown(st.totalRemainingMs)} left of ${formatDuration(st.totalMs / 1000.0)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            if (!st.finished) UpNext(steps.drop(st.index.toInt() + 1).take(3))
+        } else if (t.mode != TimerMode.STOPWATCH && !st.finished) {
             Text(
                 "${countdown(st.totalRemainingMs)} left of ${formatDuration(st.totalMs / 1000.0)}",
                 Modifier.padding(8.dp),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        if (steps.isNotEmpty()) {
-            // What's coming.
-            val upcoming = steps.drop(st.index.toInt()).take(5)
+        Spacer(Modifier.height(12.dp))
+    }
+}
+
+/**
+ * The whole program as one bar, each interval's length to scale in its intensity's colour:
+ * the ones done faded, a marker where you are now. [elapsedMs] is read while drawing.
+ */
+@Composable
+private fun ProgramTimeline(steps: List<FlatStep>, index: Int, elapsedMs: () -> Long, modifier: Modifier = Modifier) {
+    val marker = MaterialTheme.colorScheme.onSurface
+    val totalMs = remember(steps) { steps.sumOf { it.secs.toLong() * 1000 }.coerceAtLeast(1) }
+    Canvas(modifier.height(24.dp)) {
+        val barH = 10.dp.toPx()
+        val top = (size.height - barH) / 2
+        // Gaps between intervals, narrowing when there are many so the colour still shows.
+        val gap = minOf(3.dp.toPx(), size.width / steps.size * 0.25f)
+        val usable = size.width - gap * (steps.size - 1)
+        var x = 0f
+        steps.forEachIndexed { i, step ->
+            val w = usable * (step.secs.toLong() * 1000f / totalMs)
+            val alpha = when {
+                i < index -> 0.25f
+                i == index -> 1f
+                else -> 0.6f
+            }
+            drawRoundRect(
+                intensityColor(step.intensity).copy(alpha = alpha),
+                Offset(x, top),
+                Size(w.coerceAtLeast(1f), barH),
+                CornerRadius(barH / 2),
+            )
+            x += w + gap
+        }
+        // Where you are: the share of time gone, laid on the bar with its gaps.
+        var at = 0L
+        var px = size.width
+        val now = elapsedMs()
+        x = 0f
+        for (step in steps) {
+            val len = step.secs.toLong() * 1000
+            val w = usable * (len.toFloat() / totalMs)
+            if (now < at + len) {
+                px = x + w * ((now - at).toFloat() / len.coerceAtLeast(1))
+                break
+            }
+            at += len
+            x += w + gap
+        }
+        val mw = 4.dp.toPx()
+        drawRoundRect(
+            marker,
+            Offset((px - mw / 2).coerceIn(0f, size.width - mw), 0f),
+            Size(mw, size.height),
+            CornerRadius(mw / 2),
+        )
+    }
+}
+
+/** The next few intervals, one to a row: what, how hard, how long. */
+@Composable
+private fun UpNext(next: List<FlatStep>) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
+        Text(
+            if (next.isEmpty()) "LAST INTERVAL" else "UP NEXT",
+            Modifier.padding(top = 8.dp, bottom = 4.dp),
+            style = MaterialTheme.typography.labelMedium,
+            letterSpacing = 2.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        next.forEachIndexed { i, step ->
             Row(
-                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 3.dp)
+                    .alpha(if (i == 0) 1f else 0.7f),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                upcoming.forEachIndexed { i, step ->
-                    Column(
-                        Modifier
-                            .weight(step.secs.toFloat().coerceIn(20f, 300f))
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(intensityColor(step.intensity).copy(alpha = if (i == 0) 0.9f else 0.35f))
-                            .padding(6.dp),
-                    ) {
-                        Text(step.label, style = MaterialTheme.typography.labelSmall, maxLines = 1, color = if (i == 0) Color.Black else MaterialTheme.colorScheme.onSurface)
-                        Text(formatDuration(step.secs.toDouble()), style = MaterialTheme.typography.labelSmall, color = if (i == 0) Color.Black else MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
+                Box(
+                    Modifier
+                        .size(width = 4.dp, height = 36.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(intensityColor(step.intensity)),
+                )
+                Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                    Text(step.label, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(
+                        intensityLabel(step.intensity) + if (step.reps > 1u) " · round ${step.rep} of ${step.reps}" else "",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
+                Text(countdown(step.secs.toLong() * 1000), style = MaterialTheme.typography.titleMedium)
             }
         }
-        Spacer(Modifier.height(8.dp))
     }
 }
 

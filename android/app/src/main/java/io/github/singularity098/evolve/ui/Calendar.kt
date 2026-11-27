@@ -148,7 +148,7 @@ fun CalendarScreen(store: Store) {
         val minutes = workouts.sumOf { it.durationSecs } / 60
         Panel(Modifier.fillMaxWidth().padding(16.dp)) {
             Row(Modifier.padding(vertical = 14.dp)) {
-                Stat("${workouts.size}", "workouts", Modifier.weight(1f))
+                Stat("${workouts.size}", "activities", Modifier.weight(1f))
                 Stat("$active", "active days", Modifier.weight(1f))
                 Stat(formatDuration(minutes * 60), "total time", Modifier.weight(1f))
             }

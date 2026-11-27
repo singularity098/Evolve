@@ -119,7 +119,7 @@ fun ExercisesPage(store: Store, onClose: () -> Unit) {
     deleting?.let { e ->
         ConfirmDialog(
             "Delete “${e.name}”?",
-            "It's removed from the library and from routines. Past workouts keep it.",
+            "It's removed from the library and from routines. Past activities keep it.",
             "Delete",
             onConfirm = { store.act { deleteExercise(e.id) } },
             onClose = { deleting = null },
@@ -157,7 +157,7 @@ fun RoutinesPage(store: Store, onEdit: (String) -> Unit, onClose: () -> Unit) {
         }
     }
     deleting?.let { r ->
-        ConfirmDialog("Delete “${r.name}”?", "Past workouts keep what was done.", "Delete", onConfirm = { store.act { deleteRoutine(r.id) } }, onClose = { deleting = null })
+        ConfirmDialog("Delete “${r.name}”?", "Past activities keep what was done.", "Delete", onConfirm = { store.act { deleteRoutine(r.id) } }, onClose = { deleting = null })
     }
 }
 
@@ -432,7 +432,7 @@ fun BodyWeightsPage(store: Store, onClose: () -> Unit) {
         BackBar("Body weight", onClose) {
             IconButton(onClick = { adding = true }) { Icon(EvolveIcons.Plus, "Weigh in") }
         }
-        if (list.isEmpty()) EmptyMessage(EvolveIcons.Scale, "No weigh-ins yet", "Log your weight any day, workout or not; the Graphs tab charts it.")
+        if (list.isEmpty()) EmptyMessage(EvolveIcons.Scale, "No weigh-ins yet", "Log your weight any day, active or not; the Graphs tab charts it.")
         LazyColumn(contentPadding = PaddingValues(bottom = 32.dp)) {
             itemsIndexed(list, key = { _, b -> b.id }) { i, b ->
                 val prev = list.getOrNull(i + 1)

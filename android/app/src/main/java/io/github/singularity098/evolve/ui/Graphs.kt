@@ -67,7 +67,7 @@ private val Options = listOf(
     MetricOption("Estimated 1RM", Metric.EXERCISE_ONE_REP_MAX, exercise = true),
     MetricOption("Exercise volume", Metric.EXERCISE_VOLUME, exercise = true),
     MetricOption("Exercise reps", Metric.EXERCISE_REPS, exercise = true),
-    MetricOption("Workout volume", Metric.LIFTING_VOLUME),
+    MetricOption("Lifting volume", Metric.LIFTING_VOLUME),
     MetricOption("Distance", Metric.DISTANCE, kinds = Distanced),
     MetricOption("Pace", Metric.PACE, kinds = listOf(WorkoutKind.WALK, WorkoutKind.RUN, WorkoutKind.HIKE)),
     MetricOption("Speed", Metric.SPEED, kinds = listOf(WorkoutKind.BIKE, WorkoutKind.STATIONARY_BIKE)),
@@ -76,7 +76,7 @@ private val Options = listOf(
     MetricOption("Longest breath hold", Metric.BREATH_MAX_HOLD),
     MetricOption("Average breath hold", Metric.BREATH_AVERAGE_HOLD),
     MetricOption("Meditation", Metric.MEDITATION_MINUTES),
-    MetricOption("Workouts per week", Metric.WORKOUTS_PER_WEEK),
+    MetricOption("Activities per week", Metric.WORKOUTS_PER_WEEK),
     MetricOption("Minutes per week", Metric.MINUTES_PER_WEEK),
 )
 
@@ -151,7 +151,7 @@ fun GraphsScreen(store: Store) {
             Column(Modifier.padding(16.dp)) {
                 Text(series.title, style = MaterialTheme.typography.titleMedium)
                 if (series.points.isEmpty()) {
-                    EmptyMessage(EvolveIcons.Chart, "Nothing to show yet", "Workouts and weigh-ins in this time show here as they're saved.")
+                    EmptyMessage(EvolveIcons.Chart, "Nothing to show yet", "Activities and weigh-ins in this time show here as they're saved.")
                 } else {
                     LineChart(series, Modifier.fillMaxWidth().height(260.dp).padding(top = 12.dp))
                 }

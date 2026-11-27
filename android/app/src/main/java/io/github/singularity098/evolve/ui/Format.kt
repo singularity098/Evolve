@@ -3,6 +3,7 @@ package io.github.singularity098.evolve.ui
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import io.github.singularity098.evolve.core.Intensity
@@ -79,6 +80,17 @@ fun rememberNow(periodMs: Long = 100): State<Long> = produceState(System.current
         value = System.currentTimeMillis()
         delay(periodMs)
     }
+}
+
+/**
+ * The wall clock, updated on every display frame while [running] (so at the screen's own rate:
+ * 60, 90, 120 Hz). Read it only while drawing (a Canvas or drawBehind) so each frame just
+ * redraws, without recomposing the screen. It stops ticking when not [running].
+ */
+@Composable
+fun rememberFrameNow(running: Boolean = true): State<Long> = produceState(System.currentTimeMillis(), running) {
+    value = System.currentTimeMillis()
+    while (running) withFrameMillis { value = System.currentTimeMillis() }
 }
 
 /** "1:05" from milliseconds, rounded up (a countdown shows 0:01 until it ends). */

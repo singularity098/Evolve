@@ -38,7 +38,7 @@ class MainActivity : ComponentActivity(), Host {
         if (r[Manifest.permission.ACCESS_FINE_LOCATION] == true) {
             then?.invoke()
         } else {
-            Toast.makeText(this, "GPS workouts need location access", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "GPS activities need location access", Toast.LENGTH_LONG).show()
         }
     }
 
