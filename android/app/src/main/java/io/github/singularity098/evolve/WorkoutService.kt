@@ -20,10 +20,14 @@ import android.os.IBinder
 import android.os.Looper
 import android.os.PowerManager
 import android.util.Log
+import android.view.View
+import android.widget.RemoteViews
+import androidx.compose.ui.graphics.toArgb
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import io.github.singularity098.evolve.ui.MapStylesToCache
+import io.github.singularity098.evolve.ui.lookNamed
 import io.github.singularity098.evolve.core.BreathPhase
 import io.github.singularity098.evolve.core.Intensity
 import io.github.singularity098.evolve.core.Session
@@ -31,6 +35,7 @@ import io.github.singularity098.evolve.core.TimerMode
 import io.github.singularity098.evolve.core.TrackPoint
 import io.github.singularity098.evolve.core.formatDistance
 import io.github.singularity098.evolve.core.formatDuration
+import io.github.singularity098.evolve.core.formatWeight
 import io.github.singularity098.evolve.core.kindLabel
 import io.github.singularity098.evolve.core.kindUsesGps
 
@@ -40,10 +45,27 @@ import io.github.singularity098.evolve.core.kindUsesGps
  * hikes and rides, and the sounds that mark the end of a rest, each
  * interval, a meditation's end and a breath round's recovery.
  */
+/** Each set slot's views in the notification layouts: the frame, its circle, its reps. */
+private val SET_IDS = arrayOf(
+    intArrayOf(R.id.set0, R.id.set0_circle, R.id.set0_reps),
+    intArrayOf(R.id.set1, R.id.set1_circle, R.id.set1_reps),
+    intArrayOf(R.id.set2, R.id.set2_circle, R.id.set2_reps),
+    intArrayOf(R.id.set3, R.id.set3_circle, R.id.set3_reps),
+    intArrayOf(R.id.set4, R.id.set4_circle, R.id.set4_reps),
+    intArrayOf(R.id.set5, R.id.set5_circle, R.id.set5_reps),
+    intArrayOf(R.id.set6, R.id.set6_circle, R.id.set6_reps),
+)
+
 class WorkoutService : Service() {
     companion object {
         private const val CHANNEL = "workout"
         private const val ID = 1
+        /** A set circle tapped in the notification: extras [EXTRA_EXERCISE] and [EXTRA_SET]. */
+        private const val ACTION_SET = "io.github.singularity098.evolve.SET"
+        private const val EXTRA_EXERCISE = "exercise"
+        private const val EXTRA_SET = "set"
+        /** How many set circles the notification has room for. */
+        private const val SLOTS = 7
 
         fun start(context: Context) {
             try {
@@ -99,6 +121,7 @@ class WorkoutService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == ACTION_SET) tapSet(intent.getIntExtra(EXTRA_EXERCISE, -1), intent.getIntExtra(EXTRA_SET, -1))
         val session = store.session.value
         if (session == null) {
             stopSelf()
@@ -287,6 +310,72 @@ class WorkoutService : Service() {
         }
     }
 
+    /** A set circle tapped in the notification: done, as a tap on it in the app does (or undone). */
+    private fun tapSet(ei: Int, si: Int) {
+        val set = store.session.value?.lifting?.exercises?.getOrNull(ei)?.sets?.getOrNull(si) ?: return
+        val now = System.currentTimeMillis()
+        store.live {
+            if (set.done) undoSet(ei.toUInt(), si.toUInt())
+            else completeSet(ei.toUInt(), si.toUInt(), set.targetReps, now)
+        }
+        // Show it at once, not at the next second.
+        lastNotified = 0
+    }
+
+    /**
+     * The current exercise's sets as circles to tap, for a lifting workout: [small] for the
+     * collapsed notification (circles only), else with the exercise's name and [text] above.
+     */
+    private fun setsView(s: Session, text: String, small: Boolean): RemoteViews? {
+        val l = s.lifting ?: return null
+        val ei = l.current.toInt()
+        val e = l.exercises.getOrNull(ei) ?: return null
+        if (e.sets.isEmpty()) return null
+        val v = RemoteViews(packageName, if (small) R.layout.notification_sets_small else R.layout.notification_sets)
+        val next = e.sets.indexOfFirst { !it.done }
+        if (!small) {
+            val pending = e.sets.getOrNull(next)
+            v.setTextViewText(R.id.title, e.name)
+            v.setTextViewText(
+                R.id.detail,
+                (pending?.let { formatWeight(it.weightKg, store.settings.weightUnit) + " · " } ?: "") + text,
+            )
+        }
+        // Too many sets for the row: the window around the next one.
+        val first = if (e.sets.size <= SLOTS || next < 0) 0 else (next - SLOTS / 2).coerceIn(0, e.sets.size - SLOTS)
+        val paint = lookNamed(store.settings.theme)
+        for (slot in 0 until SLOTS) {
+            val si = first + slot
+            val set = e.sets.getOrNull(si)
+            val frame = SET_IDS[slot]
+            if (set == null) {
+                v.setViewVisibility(frame[0], View.GONE)
+                continue
+            }
+            v.setViewVisibility(frame[0], View.VISIBLE)
+            v.setImageViewResource(
+                frame[1],
+                when {
+                    set.done -> R.drawable.notif_set_fill
+                    si == next -> R.drawable.notif_set_ring_next
+                    else -> R.drawable.notif_set_ring
+                },
+            )
+            v.setInt(frame[1], "setColorFilter", (if (set.done || si == next) paint.paintB else paint.textDim).toArgb())
+            v.setTextViewText(frame[2], "${if (set.done) set.reps else set.targetReps}")
+            if (set.done) v.setTextColor(frame[2], android.graphics.Color.BLACK)
+            v.setOnClickPendingIntent(
+                frame[0],
+                PendingIntent.getService(
+                    this, 100 + slot,
+                    Intent(this, WorkoutService::class.java).setAction(ACTION_SET).putExtra(EXTRA_EXERCISE, ei).putExtra(EXTRA_SET, si),
+                    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+                ),
+            )
+        }
+        return v
+    }
+
     private fun notification(text: String): Notification {
         val s = store.session.value
         val open = PendingIntent.getActivity(
@@ -294,7 +383,7 @@ class WorkoutService : Service() {
             Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
-        return NotificationCompat.Builder(this, CHANNEL)
+        val b = NotificationCompat.Builder(this, CHANNEL)
             .setSmallIcon(R.drawable.ic_stat_evolve)
             .setContentTitle(s?.let { kindLabel(it.kind) } ?: "Evolve")
             .setContentText(text)
@@ -304,6 +393,14 @@ class WorkoutService : Service() {
             .setSilent(true)
             .setCategory(NotificationCompat.CATEGORY_WORKOUT)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
-            .build()
+        // Lifting: the current exercise's sets, to tap off without opening the app.
+        val small = s?.let { setsView(it, text, small = true) }
+        if (small != null) {
+            b.setStyle(NotificationCompat.DecoratedCustomViewStyle())
+                .setSubText(text)
+                .setCustomContentView(small)
+                .setCustomBigContentView(setsView(s, text, small = false))
+        }
+        return b.build()
     }
 }

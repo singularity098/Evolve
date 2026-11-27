@@ -123,6 +123,20 @@ pub struct Settings {
     pub map_dark_style: String,
     /// How strongly text stands out from the background, whatever the theme.
     pub contrast: Contrast,
+    /// What other apps' sound (music, podcasts) does while a cue plays.
+    pub other_audio: OtherAudio,
+}
+
+/// What other apps' sound does while one of Evolve's cues plays.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, uniffi::Enum)]
+#[serde(rename_all = "snake_case")]
+pub enum OtherAudio {
+    /// Plays on as it is.
+    Leave,
+    /// Turned down until the cue is over (Android's own ducking).
+    Lower,
+    /// Paused until the cue is over.
+    Pause,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, uniffi::Enum)]
@@ -164,6 +178,7 @@ impl Default for Settings {
             map_light_style: "Bright".into(),
             map_dark_style: "Midnight".into(),
             contrast: Contrast::Standard,
+            other_audio: OtherAudio::Leave,
         }
     }
 }

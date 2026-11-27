@@ -28,7 +28,7 @@ on a GPS workout's map, which takes the drag for itself):
   did. Tap a day to open its workout in History (or pick from a list when
   there were several).
 * **Settings**: design routines and interval programs, the exercise
-  library, the weigh-in log, units, sounds, the backup folder, the look
+  library, the weigh-in log, units, sounds (and whether other apps' music is left alone, turned down or paused while one plays), the backup folder, the look
   (a theme, and a contrast level: Standard, High or Maximum, for brighter
   text and plainer edges, whatever the theme). Weeks start on Sunday.
 
@@ -42,8 +42,11 @@ on a GPS workout's map, which takes the drag for itself):
   with the screen off). Hold a set to record fewer reps or change its
   weight; the ± buttons change the weight for the sets still to do. Add
   exercises or sets as you go. An exercise with every set done is marked
-  off (darker, with a tick) until another set is added. When saving, the routine can take on
-  today's weights.
+  off and folds down to a thin row with a tick (tap it to open it again) until another set is
+  added; the list stays where it is rather than scrolling to the next. The workout
+  notification shows the current exercise's sets as circles, to tap off from the lock screen
+  or another app. Until today's body weight is logged, a reminder at the top offers to log
+  it. When saving, the routine can take on today's weights.
 * **Walk, run, hike, bike ride.** GPS tracking on a map, the trail drawn
   behind you so the way back is easy to find, with distance, pace or
   speed, and climb. Pause and resume (the trail breaks while paused). Going

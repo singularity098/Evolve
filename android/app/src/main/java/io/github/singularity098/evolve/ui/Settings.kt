@@ -35,6 +35,7 @@ import io.github.singularity098.evolve.Store
 import io.github.singularity098.evolve.core.Contrast
 import io.github.singularity098.evolve.core.DistanceUnit
 import io.github.singularity098.evolve.core.MapMode
+import io.github.singularity098.evolve.core.OtherAudio
 import io.github.singularity098.evolve.core.WeightUnit
 import io.github.singularity098.evolve.core.formatDuration
 import io.github.singularity098.evolve.core.formatNumber
@@ -93,6 +94,27 @@ private fun MainSettings(store: Store, host: Host, open: (SettingsPage) -> Unit)
             }
         }
         item { SwitchRow("Sounds", "Rest over, each interval, the meditation and breathing bowl.", s.sounds) { on -> store.updateSettings { it.copy(sounds = on) } } }
+        if (s.sounds) {
+            item {
+                Column(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+                    Text("Other apps' sound", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        when (s.otherAudio) {
+                            OtherAudio.LEAVE -> "Music and podcasts play on as they are under the sounds"
+                            OtherAudio.LOWER -> "Turned down while a sound plays, then back up"
+                            OtherAudio.PAUSE -> "Paused while a sound plays, then resumed"
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf(OtherAudio.LEAVE to "Leave", OtherAudio.LOWER to "Lower", OtherAudio.PAUSE to "Pause").forEach { (m, label) ->
+                            FilterChip(s.otherAudio == m, { store.updateSettings { it.copy(otherAudio = m) } }, { Text(label) })
+                        }
+                    }
+                }
+            }
+        }
         item { SwitchRow("Vibrate", "", s.vibrate) { on -> store.updateSettings { it.copy(vibrate = on) } } }
         item {
             StepRow("Rest between sets", formatDuration(s.defaultRestSecs.toDouble()), "For exercises added to a routine or a workout") { d ->

@@ -2,13 +2,18 @@ package io.github.singularity098.evolve
 
 import android.content.Context
 import android.media.AudioAttributes
+import android.media.AudioFocusRequest
 import android.media.AudioFormat
+import android.media.AudioManager
 import android.media.AudioTrack
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import io.github.singularity098.evolve.core.OtherAudio
 import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledFuture
+import java.util.concurrent.TimeUnit
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.exp
@@ -18,7 +23,7 @@ import kotlin.math.sin
 /** Evolve's sounds, synthesized: a singing bowl, short beeps, and buzzes. */
 class Tones(private val context: Context) {
     private val rate = 44_100
-    private val player = Executors.newSingleThreadExecutor { r -> Thread(r, "tones") }
+    private val player = Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "tones") }
 
     /** (frequency, relative amplitude) partials, decaying over [seconds]. */
     private fun render(seconds: Double, decay: Double, attack: Double, volume: Double, partials: List<Pair<Double, Double>>): ShortArray {
@@ -35,16 +40,53 @@ class Tones(private val context: Context) {
         return out
     }
 
+    private val attributes = AudioAttributes.Builder()
+        .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
+        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+        .build()
+
+    /**
+     * Asks other apps to turn down or pause while a cue plays, as Settings says: Android's
+     * transient audio focus. With "lower", Android ducks the other app itself (some apps,
+     * podcast players mostly, choose to pause instead); with "pause", it is told to pause and
+     * resumes when the focus is given back. Returns the request to give back, or null.
+     */
+    private fun takeFocus(): AudioFocusRequest? {
+        val gain = when (otherAudio) {
+            OtherAudio.LEAVE -> return null
+            OtherAudio.LOWER -> AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK
+            OtherAudio.PAUSE -> AudioManager.AUDIOFOCUS_GAIN_TRANSIENT
+        }
+        val am = context.getSystemService(AudioManager::class.java) ?: return null
+        val req = AudioFocusRequest.Builder(gain)
+            .setAudioAttributes(attributes)
+            .setOnAudioFocusChangeListener { }
+            .build()
+        return if (am.requestAudioFocus(req) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) req else null
+    }
+
+    // The focus held, and when it's given back: a little after the last cue, so cues close
+    // together (the ticks before an interval) don't turn the music up and down between them.
+    // Only touched on the tones thread.
+    private var focus: AudioFocusRequest? = null
+    private var release: ScheduledFuture<*>? = null
+
+    private fun giveFocus() {
+        focus?.let { context.getSystemService(AudioManager::class.java)?.abandonAudioFocusRequest(it) }
+        focus = null
+    }
+
     private fun play(samples: ShortArray) {
         player.execute {
             try {
+                release?.cancel(false)
+                if (focus == null) {
+                    focus = takeFocus()
+                    // A moment for the other app to fade down or stop before the cue starts.
+                    if (focus != null) Thread.sleep(if (otherAudio == OtherAudio.PAUSE) 250 else 120)
+                }
                 val track = AudioTrack.Builder()
-                    .setAudioAttributes(
-                        AudioAttributes.Builder()
-                            .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
-                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                            .build()
-                    )
+                    .setAudioAttributes(attributes)
                     .setAudioFormat(
                         AudioFormat.Builder()
                             .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
@@ -60,11 +102,14 @@ class Tones(private val context: Context) {
                 Thread.sleep(samples.size * 1000L / rate + 50)
                 track.release()
             } catch (_: Exception) {
+            } finally {
+                release = if (focus != null) player.schedule({ giveFocus() }, 1500, TimeUnit.MILLISECONDS) else null
             }
         }
     }
 
     private val sounds get() = (context.applicationContext as EvolveApplication).store.settings.sounds
+    private val otherAudio get() = (context.applicationContext as EvolveApplication).store.settings.otherAudio
     private val buzz get() = (context.applicationContext as EvolveApplication).store.settings.vibrate
 
     /** The end of a meditation: a short singing bowl in a little reverb. */

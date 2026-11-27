@@ -1,5 +1,6 @@
 package io.github.singularity098.evolve.ui
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -65,6 +66,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -152,8 +154,11 @@ private fun LiftingScreen(store: Store, session: Session, onFinish: () -> Unit) 
     var editSet by remember { mutableStateOf<Pair<Int, Int>?>(null) }
     var editWeight by remember { mutableStateOf<Int?>(null) }
     var adding by remember { mutableStateOf(false) }
+    // The list stays where it is when an exercise is finished: no scrolling to the next.
     val list = rememberLazyListState()
-    LaunchedEffect(l.current) { list.animateScrollToItem(l.current.toInt()) }
+    var weighIn by remember { mutableStateOf(false) }
+    val version by store.historyVersion.collectAsStateWithLifecycle()
+    val lastWeight = remember(version) { store.engine.bodyWeights().firstOrNull() }
 
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
         WorkoutBar(store, session, now, onFinish, canPause = false)
@@ -171,6 +176,11 @@ private fun LiftingScreen(store: Store, session: Session, onFinish: () -> Unit) 
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = REST_ROOM),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            // A reminder to weigh in, until it's done today.
+            item {
+                val today = lastWeight?.takeIf { localDate(it.atMs) == java.time.LocalDate.now() }
+                WeighInRow(today?.let { weight(it.weightKg, s) }, onClick = { weighIn = true })
+            }
             if (l.exercises.isEmpty()) {
                 item { EmptyMessage(EvolveIcons.Dumbbell, "No exercises yet", "Add the first one below.") }
             }
@@ -179,17 +189,42 @@ private fun LiftingScreen(store: Store, session: Session, onFinish: () -> Unit) 
                 // Every set done: the exercise is marked off, its card darker and everything on it
                 // faded out like a disabled control, until a set is added (or one undone).
                 val finished = e.sets.isNotEmpty() && e.sets.all { it.done }
-                val shape = RoundedCornerShape(20.dp)
+                // A finished exercise folds down to a thin row; a tap opens it again (to undo a set).
+                var opened by remember { mutableStateOf(false) }
+                LaunchedEffect(finished) { if (!finished) opened = false }
+                val folded = finished && !opened
+                val shape = RoundedCornerShape(if (folded) 14.dp else 20.dp)
                 var menu by remember { mutableStateOf(false) }
                 Box(
                     Modifier
                         .fillMaxWidth()
+                        .animateContentSize()
                         .clip(shape)
                         .background(if (finished) MaterialTheme.colorScheme.surfaceContainerLowest else MaterialTheme.colorScheme.surfaceContainer)
                         .border(if (current && !finished) 2.dp else 1.dp, if (current && !finished) look.paint() else Brush.linearGradient(listOf(MaterialTheme.colorScheme.outlineVariant, MaterialTheme.colorScheme.outlineVariant)), shape)
-                        .clickable { store.live { selectExercise(ei.toUInt()) } },
+                        .clickable { if (finished) opened = !opened else store.live { selectExercise(ei.toUInt()) } },
                 ) {
-                    Column(Modifier.alpha(if (finished) 0.38f else 1f).padding(16.dp)) {
+                    if (folded) {
+                        Row(
+                            Modifier.alpha(0.38f).padding(start = 14.dp, end = 4.dp, top = 2.dp, bottom = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            PaintedIcon(EvolveIcons.Check, Modifier.padding(end = 10.dp).size(20.dp), "Done")
+                            Text(e.name, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(
+                                "${e.sets.size} sets",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Box {
+                                IconButton(onClick = { menu = true }) { Icon(EvolveIcons.More, "More") }
+                                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                                    DropdownMenuItem(text = { Text("Add a set") }, onClick = { menu = false; store.live { addSet(ei.toUInt()) } })
+                                    DropdownMenuItem(text = { Text("Remove exercise") }, onClick = { menu = false; store.live { removeSessionExercise(ei.toUInt()) } })
+                                }
+                            }
+                        }
+                    } else Column(Modifier.alpha(if (finished) 0.38f else 1f).padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             if (finished) PaintedIcon(EvolveIcons.Check, Modifier.padding(end = 10.dp).size(26.dp), "Done")
                             Column(Modifier.weight(1f)) {
@@ -339,8 +374,42 @@ private fun LiftingScreen(store: Store, session: Session, onFinish: () -> Unit) 
             dismissButton = { TextButton(onClick = { editWeight = null }) { Text("Cancel") } },
         )
     }
+    if (weighIn) BodyWeightDialog(store, onClose = { weighIn = false })
     if (adding) {
         ExercisePicker(store, onPick = { id -> store.live { addSessionExercise(id) } }, onClose = { adding = false })
+    }
+}
+
+/** Body weight, at the top of a lifting workout: a reminder until today's is logged, then a quiet line. */
+@Composable
+private fun WeighInRow(todays: String?, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(14.dp)
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(if (todays == null) MaterialTheme.colorScheme.surfaceContainer else Color.Transparent)
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = if (todays == null) 10.dp else 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        PaintedIcon(EvolveIcons.Scale, Modifier.size(if (todays == null) 24.dp else 18.dp))
+        if (todays == null) {
+            Column(Modifier.padding(start = 12.dp).weight(1f)) {
+                Text("Weigh in", style = MaterialTheme.typography.titleSmall)
+                Text("Not logged today", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            FilledTonalButton(onClick = onClick, contentPadding = PaddingValues(horizontal = 14.dp)) { Text("Log") }
+        } else {
+            Text(
+                "Body weight today: $todays",
+                Modifier.padding(start = 10.dp).weight(1f),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            PaintedIcon(EvolveIcons.Check, Modifier.size(16.dp), "Logged")
+        }
     }
 }
 
