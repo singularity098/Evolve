@@ -108,15 +108,19 @@ fun TrailMap(
             st.addSource(GeoJsonSource("here"))
             st.addLayer(
                 LineLayer("trail-casing", "trail").withProperties(
-                    PropertyFactory.lineColor(android.graphics.Color.argb(160, 0, 0, 0)),
-                    PropertyFactory.lineWidth(8f),
+                    // Dark map: a dark casing so the lime trail pops off the pale roads.
+                    PropertyFactory.lineColor(
+                        if (style.dark) android.graphics.Color.rgb(11, 20, 38) else android.graphics.Color.argb(160, 0, 0, 0)
+                    ),
+                    PropertyFactory.lineWidth(if (style.dark) 8.5f else 8f),
                     PropertyFactory.lineCap(Property.LINE_CAP_ROUND),
                     PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND),
                 )
             )
             st.addLayer(
                 LineLayer("trail-line", "trail").withProperties(
-                    PropertyFactory.lineColor(look.paintB.toArgb()),
+                    // Electric lime on the dark map: nothing else there is that colour.
+                    PropertyFactory.lineColor(if (style.dark) android.graphics.Color.rgb(198, 255, 0) else look.paintB.toArgb()),
                     PropertyFactory.lineWidth(5f),
                     PropertyFactory.lineCap(Property.LINE_CAP_ROUND),
                     PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND),
